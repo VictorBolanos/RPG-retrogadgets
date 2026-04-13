@@ -1,6 +1,10 @@
 -- Imports
 local Utils = require("Utils.lua")
 local Player = require("Player.lua")
+local Skill = require("Skill.lua")
+local Enemy = require("Enemy.lua")
+local Chapters = require("Chapters.lua")
+local CombatSystem = require("CombatSystem.lua")
 
 -- Instancias de clases
 Utils = Utils:new()
@@ -48,6 +52,30 @@ local debugSpr = rom.User.SpriteSheets["debugSpr.png"]
 -- Game locals
 local inventorySlotDiff, needsUpdate, logScrollOffset = 14, true, 0
 local player, log = nil, {}
+
+-- Game state para capítulos y combate
+local gameState = {
+    currentEvent = 0,
+    inCombat = false,
+    currentEnemy = nil,
+    playerTurn = true,
+    waitingForInput = false,
+    waitingForDecision = false,
+    currentDecision = nil,
+    nextEvent = nil,
+    combatVictoryEvent = nil,
+    combatDefeatEvent = nil,
+    chapterComplete = false,
+    gameOver = false,
+    enemyAnimFrame = 0,
+    enemyAnimTimer = 0
+}
+
+-- Skill tree locals
+local isSkillTreeOpen = false
+local selectedSkillId = nil
+local skillTreeScrollOffset = 0
+local selectedDecisionIndex = 1
 
 -- Inventory locals
 local isInventoryOpen, isPlayerSheetOpen = false, false
@@ -125,6 +153,8 @@ function Testing()
     --player:addItemToInventory("Green herb", 1)
     --player:addItemToInventory("Yellow herb", 1)
 
+    -- Iniciar Capítulo 0
+    StartChapter0()
 
 end
 
@@ -796,6 +826,162 @@ end
 
 
 --------------------------------------------------------------------------------------
+-- SKILL TREE SYSTEM
+
+function ToggleSkillTree()
+    if buttonZ.ButtonDown and not isInventoryOpen and not isPlayerSheetOpen and not gameState.inCombat then
+        isSkillTreeOpen = not isSkillTreeOpen
+        if isSkillTreeOpen then
+            selectedSkillId = 1 -- Seleccionar primera skill por defecto
+            skillTreeScrollOffset = 0
+        end
+    end
+end
+
+function HandleSkillTreeNavigation()
+    if not isSkillTreeOpen then return end
+    
+    if dPad.DPadEvent then
+        local event = dPad.DPadEvent
+        
+        -- Navegación vertical en el árbol
+        if event.Y < 0 and selectedSkillId then
+            -- Bajar
+            local nextSkill = Skill:GetSkillData(selectedSkillId + 1)
+            if nextSkill then
+                selectedSkillId = selectedSkillId + 1
+                -- Scroll si es necesario
+                local skillData = Skill:GetSkillData(selectedSkillId)
+                if skillData and skillData.gridRow - skillTreeScrollOffset > 4 then
+                    skillTreeScrollOffset = skillTreeScrollOffset + 1
+                end
+            end
+        elseif event.Y > 0 and selectedSkillId then
+            -- Subir
+            if selectedSkillId > 1 then
+                selectedSkillId = selectedSkillId - 1
+                -- Scroll si es necesario
+                local skillData = Skill:GetSkillData(selectedSkillId)
+                if skillData and skillData.gridRow - skillTreeScrollOffset < 0 then
+                    skillTreeScrollOffset = skillTreeScrollOffset - 1
+                end
+            end
+        end
+        
+        -- Navegación horizontal entre árboles
+        if event.X > 0 and selectedSkillId then
+            -- Cambiar a árbol mágico
+            local currentSkill = Skill:GetSkillData(selectedSkillId)
+            if currentSkill and currentSkill.tree == "physical" then
+                selectedSkillId = 4 -- Primera skill mágica
+            end
+        elseif event.X < 0 and selectedSkillId then
+            -- Cambiar a árbol físico
+            local currentSkill = Skill:GetSkillData(selectedSkillId)
+            if currentSkill and currentSkill.tree == "magic" then
+                selectedSkillId = 1 -- Primera skill física
+            end
+        end
+    end
+    
+    -- Aprender skill con botón X
+    if buttonX.ButtonDown and selectedSkillId then
+        local success, message = Skill:LearnSkill(player, selectedSkillId)
+        if success then
+            Utils:AddLogEntry(log, logIcons, 3, 0, message)
+        else
+            Utils:AddLogEntry(log, logIcons, 0, 0, message)
+        end
+    end
+end
+
+--------------------------------------------------------------------------------------
+-- COMBAT SYSTEM
+
+function HandleCombatInput()
+    if not gameState.inCombat or not gameState.playerTurn then return end
+    
+    -- Use skill from slot 1
+    if screenButtonSkills[1].ButtonDown and player.selectedSkills[1] then
+        local action = {type = "skill", skillId = player.selectedSkills[1]}
+        CombatSystem:ExecuteTurn(player, gameState.currentEnemy, action, gameState, log, logIcons, Utils)
+        gameState.playerTurn = false
+    end
+    
+    -- Use skill from slot 2
+    if screenButtonSkills[2].ButtonDown and player.selectedSkills[2] then
+        local action = {type = "skill", skillId = player.selectedSkills[2]}
+        CombatSystem:ExecuteTurn(player, gameState.currentEnemy, action, gameState, log, logIcons, Utils)
+        gameState.playerTurn = false
+    end
+end
+
+function UpdateCombatAnimation()
+    if not gameState.inCombat then return end
+    
+    -- Animate enemy sprite (alternate every 0.5s)
+    gameState.enemyAnimTimer = gameState.enemyAnimTimer + (1/60)
+    if gameState.enemyAnimTimer >= 0.5 then
+        gameState.enemyAnimFrame = (gameState.enemyAnimFrame + 1) % 2
+        gameState.enemyAnimTimer = 0
+    end
+end
+
+--------------------------------------------------------------------------------------
+-- CHAPTER SYSTEM
+
+function HandleChapterProgression()
+    -- Continuar después de diálogo
+    if gameState.waitingForInput and buttonX.ButtonDown then
+        gameState.waitingForInput = false
+        if gameState.nextEvent then
+            Chapters:ExecuteEvent(gameState.nextEvent, player, gameState, log, logIcons, Utils)
+        end
+    end
+    
+    -- Manejar decisiones
+    if gameState.waitingForDecision then
+        HandleDecisionInput()
+    end
+end
+
+function HandleDecisionInput()
+    if not gameState.currentDecision then return end
+    
+    local options = gameState.currentDecision.options
+    
+    -- Navegación
+    if dPad.DPadEvent then
+        local event = dPad.DPadEvent
+        if event.Y < 0 then
+            selectedDecisionIndex = math.min(selectedDecisionIndex + 1, #options)
+        elseif event.Y > 0 then
+            selectedDecisionIndex = math.max(selectedDecisionIndex - 1, 1)
+        end
+    end
+    
+    -- Confirmar decisión
+    if buttonX.ButtonDown then
+        local selectedOption = options[selectedDecisionIndex]
+        gameState.waitingForDecision = false
+        gameState.currentDecision = nil
+        selectedDecisionIndex = 1
+        video3:Clear(color.black)
+        
+        -- Ejecutar siguiente evento
+        if selectedOption.nextEvent then
+            Chapters:ExecuteEvent(selectedOption.nextEvent, player, gameState, log, logIcons, Utils)
+        end
+    end
+end
+
+function StartChapter0()
+    -- Iniciar el capítulo 0
+    gameState.currentEvent = 0
+    Chapters:ExecuteEvent(0, player, gameState, log, logIcons, Utils)
+end
+
+--------------------------------------------------------------------------------------
 --------------------------------------------------------------------------------------
 
 function LoadGame()
@@ -827,9 +1013,32 @@ function update()
 
     TogglePlayerSheet()
     ToggleInventory()
+    ToggleSkillTree()
+    
+    -- Manejo de skill tree
+    if isSkillTreeOpen then
+        HandleSkillTreeNavigation()
+        Utils:PrintSkillTree(player, Skill, selectedSkillId, skillTreeScrollOffset)
+    end
+    
+    -- Manejo de combate
+    if gameState.inCombat then
+        HandleCombatInput()
+        UpdateCombatAnimation()
+        Utils:PrintCombatScreen(player, gameState.currentEnemy, gameState.enemyAnimFrame, gameFont, gameFontAlter2, guiIcons, enemySpr)
+        Utils:PrintSkillButtons(player, Skill, skillSpr)
+    end
+    
+    -- Manejo de decisiones
+    if gameState.waitingForDecision then
+        Utils:PrintDecisionOptions(gameState.currentDecision.options, selectedDecisionIndex)
+    end
+    
+    -- Progresión de capítulos
+    HandleChapterProgression()
 
     -- Limpiar pantalla solo si no hay ningún estado activo
-    if not isInventoryOpen and not isPlayerSheetOpen and not isFilteredInventoryOpen and not isSubStatsOpen and not isRecipesMenuOpen then
+    if not isInventoryOpen and not isPlayerSheetOpen and not isFilteredInventoryOpen and not isSubStatsOpen and not isRecipesMenuOpen and not isSkillTreeOpen and not gameState.inCombat then
         video1:Clear(color.black)
     end
     
@@ -850,14 +1059,15 @@ function update()
     LogController()
     
     player:updateSubStats()
-    Utils:PrintPlayerConstants(player)
+    if not isSkillTreeOpen then
+        Utils:PrintPlayerConstants(player)
+    end
     
     TestingUpdate()
 		
 		
 
 
-        video4:DrawSprite(vec2(1,53), debugSpr,8,8, color.white, color.clear)
 
         --video1:DrawSprite(vec2(1,53), debugSpr,0,0, color.white, color.clear)
 		

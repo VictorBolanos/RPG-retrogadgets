@@ -567,12 +567,12 @@ function Utils:PrintRecipes(player, videoChip, selectedItem, selectedRecipeIndex
                     -- 4. Dibujar indicador de disponibilidad
                     local hasEnough = player.inventory[ing.itemName] and 
                                     player.inventory[ing.itemName] >= ing.quantity
-                    local iconX = hasEnough and 7 or 8
+                    local iconX = hasEnough and 0 or 1
                     videoChip:DrawSprite(
                         vec2(xOffset + 4, currentY + INDICATOR_Y_OFFSET),
                         guiIcons,
                         iconX,
-                        0,
+                        2,
                         color.white,
                         color.clear
                     )
@@ -607,6 +607,203 @@ function Utils:PrintRecipes(player, videoChip, selectedItem, selectedRecipeIndex
                 )
             end
         end
+    end
+end
+
+---------------------------------------------------------------------------
+-- SKILL SYSTEM UI
+
+function Utils:PrintSkillTree(player, Skill, selectedSkillId, scrollOffset)
+    local skillSpr = rom.User.SpriteSheets["skillSpr.png"]
+    local guiSkillList = rom.User.SpriteSheets["guiSkillList.png"]
+    local guiSelectors = rom.User.SpriteSheets["guiSelectors.png"]
+    
+    videoPrincipal:Clear(color.black)
+    
+    -- Pintar fondo del skill tree
+    videoPrincipal:DrawSprite(vec2(0, 0), guiSkillList, 0, 0, color.white, color.clear)
+    
+    scrollOffset = scrollOffset or 0
+    
+    -- Pintar skills del árbol físico (columna 0)
+    for _, skillData in ipairs(BD.skills) do
+        if skillData.tree == "physical" then
+            self:DrawSkillIcon(player, skillData, selectedSkillId, scrollOffset, guiSelectors, skillSpr)
+        end
+    end
+    
+    -- Pintar skills del árbol mágico (columna 2)
+    for _, skillData in ipairs(BD.skills) do
+        if skillData.tree == "magic" then
+            self:DrawSkillIcon(player, skillData, selectedSkillId, scrollOffset, guiSelectors, skillSpr)
+        end
+    end
+    
+    -- Pintar info de la skill seleccionada
+    if selectedSkillId then
+        local skillData = Skill:GetSkillData(selectedSkillId)
+        if skillData then
+            self:DrawSkillInfo(skillData, player)
+        end
+    end
+end
+
+function Utils:DrawSkillIcon(player, skillData, selectedSkillId, scrollOffset, guiSelectors, skillSpr)
+    local col = skillData.treeColumn
+    local row = skillData.gridRow - scrollOffset
+    
+    -- Solo pintar si está visible (filas 0-4)
+    if row < 0 or row > 4 then return end
+    
+    -- Posiciones base
+    local selectorX = 1 + (col * 12)
+    local selectorY = 1 + (row * 12)
+    local iconX = 3 + (col * 12)
+    local iconY = 3 + (row * 12)
+    
+    -- Verificar si está aprendida
+    local isLearned = false
+    for _, learnedId in ipairs(player.skills) do
+        if learnedId == skillData.id then
+            isLearned = true
+            break
+        end
+    end
+    
+    -- Pintar selector de color si está aprendida
+    if isLearned then
+        local selectorCol = skillData.tree == "physical" and 1 or 3
+        videoPrincipal:DrawSprite(
+            vec2(selectorX, selectorY),
+            guiSelectors,
+            selectorCol, 3,
+            color.white, color.clear
+        )
+    end
+    
+    -- Pintar icono de skill solo si está aprendida
+    if isLearned then
+        videoPrincipal:DrawSprite(
+            vec2(iconX, iconY),
+            skillSpr,
+            skillData.spriteX, skillData.spriteY,
+            color.white, color.clear
+        )
+    end
+    
+    -- Pintar cursor si es la skill seleccionada
+    if selectedSkillId == skillData.id then
+        videoPrincipal:DrawSprite(
+            vec2(selectorX, selectorY),
+            guiSelectors,
+            0, 3,
+            color.white, color.clear
+        )
+    end
+end
+
+function Utils:DrawSkillInfo(skillData, player)
+    local guiIcons = rom.User.SpriteSheets["guiIcons.png"]
+    
+    -- Nombre (66, 8)
+    self:Tprint(videoPrincipal, vec2(66, 8), gameFontAlter1, nil, nil, nil, skillData.name)
+    
+    -- Puntos disponibles (115, 1 para 1 dígito / 111, 1 para 2 dígitos)
+    local pointsStr = tostring(player.skillPoints)
+    local pointsX = #pointsStr == 1 and 115 or 111
+    self:Tprint(videoPrincipal, vec2(pointsX, 1), gameFontAlter1, nil, nil, nil, "Pt")
+    self:Tprint(videoPrincipal, vec2(pointsX + 8, 1), gameFontAlter1, nil, nil, nil, pointsStr)
+    
+    -- Descripción (66, 24)
+    self:Tprint(videoPrincipal, vec2(66, 24), gameFont, nil, nil, nil, "DESCRIPTION")
+    self:Tprint(videoPrincipal, vec2(66, 32), gameFont, nil, nil, nil, skillData.description)
+    
+    -- Coste de maná (115, 17 para 1 dígito / 111, 17 para 2 dígitos)
+    if skillData.type == "active" then
+        local costStr = tostring(skillData.manaCost)
+        local costX = #costStr == 1 and 115 or 111
+        
+        -- Icono de maná (asumiendo guiIcons[1,0] es el icono de maná)
+        videoPrincipal:DrawSprite(vec2(costX + 8, 17), guiIcons, 1, 0, color.white, color.clear)
+        self:Tprint(videoPrincipal, vec2(costX, 17), gameFontAlter1, nil, nil, nil, costStr)
+    end
+end
+
+function Utils:PrintCombatScreen(player, enemy, enemyFrame, gameFont, gameFontAlter2, guiIcons, enemySpr)
+    videoPrincipal:Clear(color.black)
+    
+    -- Pintar sprite del enemigo centrado (con animación)
+    local enemyX = 56  -- Centrado en 128px
+    local enemyY = 10
+    videoPrincipal:DrawSprite(
+        vec2(enemyX, enemyY),
+        enemySpr,
+        enemyFrame, enemy.spriteRow,
+        color.white, color.clear
+    )
+    
+    -- HP del enemigo debajo del sprite
+    local hpText = tostring(enemy.health)
+    local heartX = 52
+    local heartY = 30
+    
+    -- Icono corazón
+    videoPrincipal:DrawSprite(vec2(heartX, heartY), guiIcons, 0, 0, color.white, color.clear)
+    
+    -- Texto HP (alineado a la derecha del corazón)
+    local hpX = heartX + 8
+    self:Tprint(videoPrincipal, vec2(hpX, heartY), gameFont, nil, nil, nil, hpText)
+end
+
+function Utils:PrintSkillButtons(player, Skill, skillSpr)
+    local video4 = gdt.VideoChip3
+    video4:Clear(color.black)
+    
+    -- Slot 1 (0, 0)
+    if player.selectedSkills[1] then
+        local skillData = Skill:GetSkillData(player.selectedSkills[1])
+        if skillData then
+            video4:DrawSprite(
+                vec2(3, 3),
+                skillSpr,
+                skillData.spriteX, skillData.spriteY,
+                color.white, color.clear
+            )
+        end
+    end
+    
+    -- Slot 2 (27, 0)
+    if player.selectedSkills[2] then
+        local skillData = Skill:GetSkillData(player.selectedSkills[2])
+        if skillData then
+            video4:DrawSprite(
+                vec2(30, 3),
+                skillSpr,
+                skillData.spriteX, skillData.spriteY,
+                color.white, color.clear
+            )
+        end
+    end
+end
+
+function Utils:PrintDecisionOptions(options, selectedIndex)
+    local video3 = gdt.VideoChip2
+    local logIcons = rom.User.SpriteSheets["logIcons.png"]
+    
+    video3:Clear(color.black)
+    
+    for i, option in ipairs(options) do
+        local yPos = (i - 1) * 8
+        
+        -- Pintar selector
+        if i == selectedIndex then
+            video3:DrawSprite(vec2(0, yPos), logIcons, 5, 0, color.white, color.clear)
+        else
+            video3:DrawSprite(vec2(0, yPos), logIcons, 4, 0, color.white, color.clear)
+        end
+        
+        -- Pintar texto de opción
+        self:Tprint(video3, vec2(8, yPos), gameFont, nil, nil, nil, option.text)
     end
 end
 
