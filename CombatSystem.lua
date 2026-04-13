@@ -69,6 +69,11 @@ function CombatSystem:ExecuteTurn(player, enemy, action, gameState, log, logIcon
     
     -- Apply hunger/sleep decay
     player:ApplyHungerSleepDecay(log, logIcons, Utils)
+    
+    -- Reset player turn for next round
+    print("DEBUG: CombatSystem - Resetting playerTurn to true")
+    gameState.playerTurn = true
+    print("DEBUG: CombatSystem - playerTurn = " .. tostring(gameState.playerTurn))
 end
 
 ---------------------------------------------------------------------------
@@ -83,6 +88,9 @@ function CombatSystem:ExecutePlayerAction(player, enemy, action, log, logIcons, 
         enemy.health = math.max(0, enemy.health - damage)
         Utils:AddLogEntry(log, logIcons, 1, 0, player.name.." attacks!")
         Utils:AddLogEntry(log, logIcons, 1, 0, enemy.name.." takes "..damage.." damage!")
+    elseif action.type == "item" then
+        -- Item already used by player:useItem() before calling this
+        Utils:AddLogEntry(log, logIcons, 1, 0, player.name.." used "..action.itemName.."!")
     end
 end
 

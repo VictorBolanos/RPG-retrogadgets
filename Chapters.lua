@@ -10,47 +10,75 @@ Chapters.CHAPTER_0 = {
     id = 0,
     name = "Awakening",
     
+    -- ==================== PHASES (for background changes) ====================
+    phases = {
+        [1] = {
+            name = "Sewers",
+            background = "sewersBG",
+            events = {0, 1, 2, 3, 4, 5, 10, 11, 12, 15, 20, 21, 30, 40, 100, 101, 102} -- All events use sewers background
+        }
+    },
+    
     -- ==================== EVENTS ====================
     events = {
-        -- Event 0: Intro
+        -- Event 0: Intro dialogue
         [0] = {
             type = "dialogue",
             text = "You wake up in darkness... You're in sewers. You must escape.",
             nextEvent = 1
         },
         
-        -- Event 1: First tutorial combat
+        -- Event 1: FIRST DECISION (before any combat)
         [1] = {
+            type = "decision",
+            question = "What do you want to do?",
+            options = {
+                {text = "Look around", nextEvent = 2},
+                {text = "Go forward", nextEvent = 3},
+                {text = "Search for exit", nextEvent = 10}
+            }
+        },
+        
+        -- Event 2: Look around (leads to combat)
+        [2] = {
+            type = "dialogue",
+            text = "You notice a suspicious shape in the dark... It's a wolf!",
+            nextEvent = 100
+        },
+        
+        -- Event 100: First combat
+        [100] = {
             type = "combat",
             enemyId = 1, -- Weak Wolf
-            onVictory = 2,
+            onVictory = 3,
             onDefeat = "game_over"
         },
         
-        -- Event 2: First decision
-        [2] = {
+        -- Event 3: After first combat OR direct path
+        [3] = {
             type = "dialogue",
-            text = "You defeated the wolf. You see two paths.",
-            nextEvent = 3
+            text = "You see two paths ahead.",
+            nextEvent = 4
         },
         
-        [3] = {
+        -- Event 4: Second decision
+        [4] = {
             type = "decision",
-            question = "What to do?",
+            question = "Which path to take?",
             options = {
-                {text = "Go forward", nextEvent = 4},
+                {text = "Go forward", nextEvent = 5},
                 {text = "Find exit", nextEvent = 10}
             }
         },
         
         -- Branch A: Go forward
-        [4] = {
+        [5] = {
             type = "dialogue",
             text = "You advance carefully... You hear growling.",
-            nextEvent = 5
+            nextEvent = 101
         },
         
-        [5] = {
+        [101] = {
             type = "combat",
             enemyId = 2, -- Normal Wolf
             onVictory = 15,
@@ -82,10 +110,10 @@ Chapters.CHAPTER_0 = {
         [15] = {
             type = "dialogue",
             text = "A huge shadow appears... It's the alpha!",
-            nextEvent = 16
+            nextEvent = 102
         },
         
-        [16] = {
+        [102] = {
             type = "combat",
             enemyId = 3, -- Alpha Wolf (mini-boss)
             onVictory = 20,
@@ -136,6 +164,22 @@ function Chapters:GetEvent(chapter, eventId)
     return nil
 end
 
+function Chapters:GetCurrentPhase(chapter, eventId)
+    if chapter == 0 then
+        -- Find which phase contains this event
+        for phaseId, phase in pairs(self.CHAPTER_0.phases) do
+            for _, evId in ipairs(phase.events) do
+                if evId == eventId then
+                    return phase
+                end
+            end
+        end
+        -- Default to phase 1 if not found
+        return self.CHAPTER_0.phases[1]
+    end
+    return nil
+end
+
 ---------------------------------------------------------------------------
 -- Event Handlers (dispatch only, no logic)
 
@@ -175,8 +219,18 @@ end
 function Chapters:HandleDecision(event, player, gameState, log, logIcons, Utils)
     Utils:AddLogEntry(log, logIcons, 3, 0, event.question)
     
+    print("DEBUG: HandleDecision called")
+    print("DEBUG: event.question = " .. event.question)
+    print("DEBUG: options count = " .. #event.options)
+    
+    -- Clear any previous state
+    gameState.waitingForInput = false
+    gameState.nextEvent = nil
+    
     gameState.currentDecision = event
     gameState.waitingForDecision = true
+    
+    print("DEBUG: gameState.waitingForDecision = " .. tostring(gameState.waitingForDecision))
     
     return {type = "decision", options = event.options}
 end

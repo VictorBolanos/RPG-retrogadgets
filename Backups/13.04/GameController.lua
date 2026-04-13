@@ -1,6 +1,10 @@
 -- Imports
 local Utils = require("Utils.lua")
 local Player = require("Player.lua")
+local Skill = require("Skill.lua")
+local Enemy = require("Enemy.lua")
+local Chapters = require("Chapters.lua")
+local CombatSystem = require("CombatSystem.lua")
 
 -- Instancias de clases
 Utils = Utils:new()
@@ -49,6 +53,33 @@ local debugSpr = rom.User.SpriteSheets["debugSpr.png"]
 local inventorySlotDiff, needsUpdate, logScrollOffset = 14, true, 0
 local player, log = nil, {}
 
+-- Game state para capítulos y combate
+local gameState = {
+    currentEvent = 0,
+    inCombat = false,
+    currentEnemy = nil,
+    playerTurn = true,
+    waitingForInput = false,
+    waitingForDecision = false,
+    currentDecision = nil,
+    nextEvent = nil,
+    combatVictoryEvent = nil,
+    combatDefeatEvent = nil,
+    chapterComplete = false,
+    gameOver = false,
+    enemyAnimFrame = 0,
+    enemyAnimTimer = 0,
+    combatMenuActive = false,
+    combatOptions = {},
+    selectedCombatOption = 1
+}
+
+-- Skill tree locals
+local isSkillTreeOpen = false
+local selectedSkillId = nil
+local skillTreeScrollOffset = 0
+local selectedDecisionIndex = 1
+
 -- Inventory locals
 local isInventoryOpen, isPlayerSheetOpen = false, false
 local selectedItemIndex, confirmedItemIndex = vec2(1, 1), nil
@@ -73,15 +104,27 @@ local recipeScrollOffset = 0  -- Nuevo: offset para el scroll de recetas
 
 -- debugies
 
+function DrawBackground()
+    -- Get current phase and background
+    local phase = Chapters:GetCurrentPhase(player.chapter, gameState.currentEvent)
+    
+    if phase and phase.background then
+        local bgSprite = bgsSpr[1] -- sewersBG for now
+        if bgSprite then
+            video1:DrawSprite(vec2(0, 0), bgSprite, 0, 0, color.white, color.clear)
+        end
+    end
+end
+
 function Testing()
 	
-	Utils:AddLogEntry(log, logIcons, 2, 0, "You get conciusness inside a dark sewer. you must scape trought the ladder or explore another exit")
-
-	Utils:AddLogEntry(log, logIcons, 3, 0, "What do you want to do?")
-	
-	Utils:AddLogEntry(log, logIcons, 0, 0, "You noticed a suspicious shape far in the dark...")
-	
-	Utils:AddLogEntry(log, logIcons, 3, 0, "What do you want to do?")
+	-- 	Utils:AddLogEntry(log, logIcons, 2, 0, "You get conciusness inside a dark sewer. you must scape trought the ladder or explore another exit")
+	-- 
+	-- 	Utils:AddLogEntry(log, logIcons, 3, 0, "What do you want to do?")
+	-- 	
+	-- 	Utils:AddLogEntry(log, logIcons, 0, 0, "You noticed a suspicious shape far in the dark...")
+	-- 	
+	-- 	Utils:AddLogEntry(log, logIcons, 3, 0, "What do you want to do?")
 	
 	
 
@@ -95,8 +138,8 @@ function Testing()
 	
 	--video1:DrawSprite(vec2(0,0), guiPlayerSheet, 0, 0, color.white, color.clear)
 
-    --(chapter, subChapter, gold, name, level, exp, expToNextLevel, points, defense, hunger, sleepyness, health, maxHealth, mana, maxMana, stats, equipment, inventory, skills, selectedSkills)
-    player = Player:new(0, 0, 0, "Sin nombre", 1, 0, 10, 10, 0, 0, 10, 10, 10, 10, {1,1,1,1,1}, {}, {}, {}, {})
+    --(chapter, subChapter, gold, name, level, exp, expToNextLevel, points, hunger, sleepyness, health, maxHealth, mana, maxMana, stats, equipment, inventory, skills, selectedSkills)
+    player = Player:new(0, 0, 0, "SirBolas", 1, 0, 10, 10, 50, 50, 10, 10, 10, 10, {1,1,1,1,1}, {}, {}, {}, {})
 
     player:addItemToInventory("Knife", 1)
     player:addItemToInventory("Axe", 1)
@@ -106,6 +149,7 @@ function Testing()
     player:addItemToInventory("Leather boots", 1)
 
     player:addItemToInventory("Health Potion", 1)
+    player:addItemToInventory("Sausage whipping", 2)
     player:addItemToInventory("Chestplate", 1)
     player:addItemToInventory("Iron Chestplate", 1)
     player:addItemToInventory("Iron boots", 1)
@@ -125,6 +169,7 @@ function Testing()
     --player:addItemToInventory("Green herb", 1)
     --player:addItemToInventory("Yellow herb", 1)
 
+    -- StartChapter0 is now called from Init(), not here
 
 end
 
@@ -164,7 +209,8 @@ end
 
 function Init()
 	
-	
+	-- Start Chapter 0 automatically
+	StartChapter0()
 	
 	sleep(0.2)
 
@@ -186,7 +232,10 @@ end
 -- Handle buttons and toggle states
 
 function ToggleInventory()
-    if buttonS.ButtonDown then
+    -- Don't allow opening inventory during combat (it opens via combat menu only)
+    if gameState.inCombat then return end
+    
+    if buttonA.ButtonDown then
         -- **Si el inventario filtrado estaba abierto, cerrarlo antes de abrir el normal**
         if isFilteredInventoryOpen then
             isFilteredInventoryOpen = false
@@ -209,7 +258,7 @@ end
 
 
 function TogglePlayerSheet()
-    if buttonA.ButtonDown then
+    if buttonS.ButtonDown then
         if isSubStatsOpen then
             isSubStatsOpen = false
         end
@@ -218,6 +267,13 @@ function TogglePlayerSheet()
         if isPlayerSheetOpen then
             isInventoryOpen = false
             selectedEquipmentIndex = "lHand"
+            
+            -- In combat, player sheet is READ-ONLY
+            if gameState.inCombat then
+                gameState.combatPlayerSheetReadOnly = true
+            end
+        else
+            gameState.combatPlayerSheetReadOnly = false
         end
     end
 end
@@ -356,7 +412,10 @@ function HandleButtonZ()
     elseif isFilteredInventoryOpen then
         handleFilteredInventorySelection()
     elseif isPlayerSheetOpen and not selectedStatIndex then
-        openFilteredInventoryForEquipment()
+        -- Don't allow equipping during combat (read-only mode)
+        if not gameState.combatPlayerSheetReadOnly then
+            openFilteredInventoryForEquipment()
+        end
     end
 end
 
@@ -537,6 +596,25 @@ function eventChannel1(sender, event)
         end
         Utils:ShowOptions(video3, currentOptions, selectedOptionIndex)
         return
+    elseif gameState.waitingForDecision and gameState.currentDecision and not isInventoryOpen and not isFilteredInventoryOpen and not isPlayerSheetOpen and not isSkillTreeOpen then
+        -- Handle decision navigation (only if no menus open)
+        local options = gameState.currentDecision.options
+        if event.Y < 0 then -- Abajo
+            selectedDecisionIndex = math.min(selectedDecisionIndex + 1, #options)
+            print("DEBUG: DPad Down -> selectedDecisionIndex = " .. selectedDecisionIndex)
+        elseif event.Y > 0 then -- Arriba
+            selectedDecisionIndex = math.max(selectedDecisionIndex - 1, 1)
+            print("DEBUG: DPad Up -> selectedDecisionIndex = " .. selectedDecisionIndex)
+        end
+        return
+    elseif gameState.combatMenuActive and not isInventoryOpen and not isFilteredInventoryOpen and not isPlayerSheetOpen then
+        -- Handle combat menu navigation (only if no menus open)
+        if event.Y < 0 then -- Abajo
+            gameState.selectedCombatOption = math.min(gameState.selectedCombatOption + 1, #gameState.combatOptions)
+        elseif event.Y > 0 then -- Arriba
+            gameState.selectedCombatOption = math.max(gameState.selectedCombatOption - 1, 1)
+        end
+        return
     end
 
     -- Configuración inicial
@@ -691,8 +769,7 @@ function handleInventoryNavigation(event, totalItems, maxAccessibleRow, maxCols)
     end
     
     -- Validar que la nueva posición absoluta está dentro de los límites
-    -- Restamos 1 al límite superior para que coincida con el número real de items
-    if newAbsolutePos >= 1 and newAbsolutePos < totalItems then
+    if newAbsolutePos >= 1 and newAbsolutePos <= totalItems then
         -- Convertir posición absoluta de vuelta a coordenadas (x,y)
         newY = math.ceil(newAbsolutePos / maxCols)
         newX = ((newAbsolutePos - 1) % maxCols) + 1
@@ -766,6 +843,20 @@ function HandleOptionSelection()
         
     elseif option.action == "use" then
         player:useItem(item.name)
+        
+        -- If in combat, using item counts as player turn
+        if gameState.inCombat then
+            local action = {type = "item", itemName = item.name}
+            -- Close inventory
+            isFilteredInventoryOpen = false
+            isInventoryOpen = false
+            isOptionMenuOpen = false
+            inventoryFilterType = nil
+            inventoryFilterSubType = nil
+            -- Execute turn
+            CombatSystem:ExecuteTurn(player, gameState.currentEnemy, action, gameState, log, logIcons, Utils)
+            gameState.playerTurn = false
+        end
     elseif option.action == "drop" then
         player:removeItemFromInventory(item.name, item.quantity)
     elseif option.action == "recipes" then
@@ -796,6 +887,208 @@ end
 
 
 --------------------------------------------------------------------------------------
+-- SKILL TREE SYSTEM
+
+function ToggleSkillTree()
+    if buttonZ.ButtonDown and not isInventoryOpen and not isPlayerSheetOpen and not gameState.inCombat and not gameState.waitingForDecision and not gameState.waitingForInput then
+        isSkillTreeOpen = not isSkillTreeOpen
+        if isSkillTreeOpen then
+            selectedSkillId = 1
+            skillTreeScrollOffset = 0
+        end
+    end
+end
+
+function HandleSkillTreeNavigation()
+    if not isSkillTreeOpen then return end
+    
+    if dPad.DPadEvent then
+        local event = dPad.DPadEvent
+        
+        -- Navegación vertical en el árbol
+        if event.Y < 0 and selectedSkillId then
+            -- Bajar
+            local nextSkill = Skill:GetSkillData(selectedSkillId + 1)
+            if nextSkill then
+                selectedSkillId = selectedSkillId + 1
+                -- Scroll si es necesario
+                local skillData = Skill:GetSkillData(selectedSkillId)
+                if skillData and skillData.gridRow - skillTreeScrollOffset > 4 then
+                    skillTreeScrollOffset = skillTreeScrollOffset + 1
+                end
+            end
+        elseif event.Y > 0 and selectedSkillId then
+            -- Subir
+            if selectedSkillId > 1 then
+                selectedSkillId = selectedSkillId - 1
+                -- Scroll si es necesario
+                local skillData = Skill:GetSkillData(selectedSkillId)
+                if skillData and skillData.gridRow - skillTreeScrollOffset < 0 then
+                    skillTreeScrollOffset = skillTreeScrollOffset - 1
+                end
+            end
+        end
+        
+        -- Navegación horizontal entre árboles
+        if event.X > 0 and selectedSkillId then
+            -- Cambiar a árbol mágico
+            local currentSkill = Skill:GetSkillData(selectedSkillId)
+            if currentSkill and currentSkill.tree == "physical" then
+                selectedSkillId = 4 -- Primera skill mágica
+            end
+        elseif event.X < 0 and selectedSkillId then
+            -- Cambiar a árbol físico
+            local currentSkill = Skill:GetSkillData(selectedSkillId)
+            if currentSkill and currentSkill.tree == "magic" then
+                selectedSkillId = 1 -- Primera skill física
+            end
+        end
+    end
+    
+    -- Aprender skill con botón X
+    if buttonX.ButtonDown and selectedSkillId then
+        local success, message = Skill:LearnSkill(player, selectedSkillId)
+        if success then
+            Utils:AddLogEntry(log, logIcons, 3, 0, message)
+        else
+            Utils:AddLogEntry(log, logIcons, 0, 0, message)
+        end
+    end
+end
+
+--------------------------------------------------------------------------------------
+-- COMBAT SYSTEM
+
+function HandleCombatInput()
+    if not gameState.inCombat then 
+        print("DEBUG: Not in combat")
+        return 
+    end
+    
+    if not gameState.playerTurn then 
+        print("DEBUG: Not player turn")
+        return 
+    end
+    
+    print("DEBUG: HandleCombatInput - combatMenuActive = " .. tostring(gameState.combatMenuActive))
+    
+    -- If no combat menu is active, show it
+    if not gameState.combatMenuActive then
+        print("DEBUG: Activating combat menu")
+        gameState.combatMenuActive = true
+        gameState.combatOptions = {
+            {text = "Attack", action = "attack"},
+            {text = "Use Item", action = "item"}
+        }
+        gameState.selectedCombatOption = 1
+        return
+    end
+    
+    -- Confirm selection with buttonZ
+    if buttonZ.ButtonDown then
+        print("DEBUG: buttonZ pressed in combat")
+        local option = gameState.combatOptions[gameState.selectedCombatOption]
+        
+        if option.action == "attack" then
+            print("DEBUG: Executing attack")
+            -- Execute basic attack
+            local action = {type = "attack"}
+            CombatSystem:ExecuteTurn(player, gameState.currentEnemy, action, gameState, log, logIcons, Utils)
+            gameState.playerTurn = false
+            gameState.combatMenuActive = false
+            video3:Clear(color.black)
+            
+        elseif option.action == "item" then
+            print("DEBUG: Opening item menu")
+            -- Open consumables inventory
+            gameState.combatMenuActive = false
+            isFilteredInventoryOpen = true
+            inventoryFilterType = "consumable"
+            inventoryFilterSubType = nil
+            selectedItemIndex = vec2(1, 1)
+            confirmedItemIndex = nil
+            video3:Clear(color.black)
+        end
+    end
+end
+
+function UpdateCombatAnimation()
+    if not gameState.inCombat then return end
+    
+    -- Animate enemy sprite (alternate every 0.5s)
+    gameState.enemyAnimTimer = gameState.enemyAnimTimer + (1/60)
+    if gameState.enemyAnimTimer >= 0.5 then
+        gameState.enemyAnimFrame = (gameState.enemyAnimFrame + 1) % 2
+        gameState.enemyAnimTimer = 0
+    end
+end
+
+--------------------------------------------------------------------------------------
+-- CHAPTER SYSTEM
+
+function HandleChapterProgression()
+    -- Don't handle chapter events if menus are open or interacting with UI
+    if isInventoryOpen or isFilteredInventoryOpen or isSkillTreeOpen or isOptionMenuOpen or confirmedItemIndex or selectedStatIndex then
+        return
+    end
+    
+    -- Don't handle if player sheet is open AND equipment slot is being interacted with
+    if isPlayerSheetOpen and selectedEquipmentIndex and selectedEquipmentIndex ~= "lHand" then
+        return
+    end
+    
+    -- Continuar después de diálogo con buttonZ
+    if gameState.waitingForInput and buttonZ.ButtonDown then
+        gameState.waitingForInput = false
+        local nextEv = gameState.nextEvent  -- Save before clearing
+        gameState.nextEvent = nil  -- Clear to prevent re-execution
+        if nextEv then
+            Chapters:ExecuteEvent(nextEv, player, gameState, log, logIcons, Utils)
+        end
+        return -- Don't process decisions in same frame
+    end
+    
+    -- Manejar decisiones (only if we didn't just advance dialogue)
+    if gameState.waitingForDecision then
+        HandleDecisionInput()
+    end
+end
+
+function HandleDecisionInput()
+    if not gameState.currentDecision then return end
+    
+    -- Don't handle if interactive menus are open
+    if isInventoryOpen or isFilteredInventoryOpen or isSkillTreeOpen or isOptionMenuOpen then
+        return
+    end
+    
+    local options = gameState.currentDecision.options
+    
+    -- DPad navigation is handled in eventChannel1
+    
+    -- Confirmar decisión con buttonZ
+    if buttonZ.ButtonDown then
+        print("DEBUG: buttonZ pressed, selecting option " .. selectedDecisionIndex)
+        local selectedOption = options[selectedDecisionIndex]
+        gameState.waitingForDecision = false
+        gameState.currentDecision = nil
+        selectedDecisionIndex = 1
+        video3:Clear(color.black)
+        
+        -- Ejecutar siguiente evento
+        if selectedOption.nextEvent then
+            Chapters:ExecuteEvent(selectedOption.nextEvent, player, gameState, log, logIcons, Utils)
+        end
+    end
+end
+
+function StartChapter0()
+    -- Iniciar el capítulo 0
+    gameState.currentEvent = 0
+    Chapters:ExecuteEvent(0, player, gameState, log, logIcons, Utils)
+end
+
+--------------------------------------------------------------------------------------
 --------------------------------------------------------------------------------------
 
 function LoadGame()
@@ -822,17 +1115,45 @@ Init()
 
 -- update
 function update()
+    -- Draw background ALWAYS on video1 (behind everything) - including combat
+    if not isInventoryOpen and not isPlayerSheetOpen and not isFilteredInventoryOpen and not isSubStatsOpen and not isRecipesMenuOpen and not isSkillTreeOpen then
+        video1:Clear(color.black)
+        DrawBackground()
+    end
+    
+    -- Progresión de capítulos (PRIORITY - handle first)
+    HandleChapterProgression()
+    
     HandleButtonZ()
     HandleButtonX()
 
     TogglePlayerSheet()
     ToggleInventory()
-
-    -- Limpiar pantalla solo si no hay ningún estado activo
-    if not isInventoryOpen and not isPlayerSheetOpen and not isFilteredInventoryOpen and not isSubStatsOpen and not isRecipesMenuOpen then
-        video1:Clear(color.black)
+    ToggleSkillTree()
+    
+    -- Manejo de skill tree
+    if isSkillTreeOpen then
+        HandleSkillTreeNavigation()
+        Utils:PrintSkillTree(player, Skill, selectedSkillId, skillTreeScrollOffset)
     end
     
+    -- Manejo de combate (draws on top of background)
+    if gameState.inCombat then
+        HandleCombatInput()
+        UpdateCombatAnimation()
+        Utils:PrintCombatScreen(player, gameState.currentEnemy, gameState.enemyAnimFrame, gameFont, gameFontAlter2, guiIcons, enemySpr)
+        
+        -- Show combat menu if active
+        if gameState.combatMenuActive then
+            Utils:PrintDecisionOptions(gameState.combatOptions, gameState.selectedCombatOption)
+        end
+    end
+    
+    -- Manejo de decisiones (render options)
+    if gameState.waitingForDecision then
+        Utils:PrintDecisionOptions(gameState.currentDecision.options, selectedDecisionIndex)
+    end
+
     -- Renderizar la pantalla correcta según el estado
     if isRecipesMenuOpen then
         Utils:PrintRecipes(player, nil, selectedItemForRecipes, selectedRecipeIndex, recipeScrollOffset)
@@ -850,14 +1171,15 @@ function update()
     LogController()
     
     player:updateSubStats()
-    Utils:PrintPlayerConstants(player)
+    if not isSkillTreeOpen then
+        Utils:PrintPlayerConstants(player)
+    end
     
     TestingUpdate()
 		
 		
 
 
-        video4:DrawSprite(vec2(1,53), debugSpr,8,8, color.white, color.clear)
 
         --video1:DrawSprite(vec2(1,53), debugSpr,0,0, color.white, color.clear)
 		

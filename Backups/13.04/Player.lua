@@ -16,11 +16,12 @@ function Player:new(chapter, subChapter, gold, name, level, exp, expToNextLevel,
 
         gold = gold,
 
-        name = "Sin nombre",
+        name = name or "Unknown",
         level = level or 1,
         exp = exp or 0,
         expToNextLevel = expToNextLevel or CalculateExpToNextLevel(level or 1),
         points = points or 0,
+        skillPoints = 0, -- Puntos para aprender skills
 
         hunger = hunger,
         sleepyness = sleepyness,
@@ -151,7 +152,18 @@ function Player:addExp(expGained)
     while self.exp >= self.expToNextLevel do
         self.exp = self.exp - self.expToNextLevel
         self.level = self.level + 1
-        self.points = self.points + 10  -- Otorga 10 puntos al subir de nivel
+        
+        -- Otorgar puntos de stats
+        self.points = self.points + 2
+        
+        -- Otorgar puntos de skills
+        self.skillPoints = self.skillPoints + 1
+        
+        -- Bonus cada 5 niveles
+        if self.level % 5 == 0 then
+            self.points = self.points + 2
+        end
+        
         self.expToNextLevel = CalculateExpToNextLevel(self.level)
     end
 end
@@ -572,8 +584,33 @@ function Player:executeRecipe(recipe)
     return true, "¡Receta completada!"
 end
 
+---------------------------------------------------------------------------
+-- Hunger and Sleep Decay System
 
+function Player:ApplyHungerSleepDecay(log, logIcons, Utils)
+    -- Hunger decay
+    self.hunger = math.max(0, self.hunger - 1)
+    
+    if self.hunger == 0 then
+        self:minusHealth(3)
+        Utils:AddLogEntry(log, logIcons, 0, 0, "Starving! -3 HP")
+    elseif self.hunger < 25 then
+        self:minusHealth(1)
+        Utils:AddLogEntry(log, logIcons, 0, 0, "Hungry -1 HP")
+    end
+    
+    -- Sleep decay
+    self.sleepyness = math.max(0, self.sleepyness - 1)
+    
+    if self.sleepyness == 0 then
+        -- Faint
+        local expLoss = math.floor(self.exp * 0.1)
+        self.exp = math.max(0, self.exp - expLoss)
+        Utils:AddLogEntry(log, logIcons, 0, 0, "You faint! Lose "..expLoss.." EXP")
+        self.sleepyness = 50 -- Wake up with 50% sleep
+    end
+end
 
-
+---------------------------------------------------------------------------
 
 return Player

@@ -16,7 +16,7 @@ function Player:new(chapter, subChapter, gold, name, level, exp, expToNextLevel,
 
         gold = gold,
 
-        name = name or "Sin nombre",
+        name = name or "Unknown",
         level = level or 1,
         exp = exp or 0,
         expToNextLevel = expToNextLevel or CalculateExpToNextLevel(level or 1),
@@ -611,8 +611,6 @@ function Player:ApplyHungerSleepDecay(log, logIcons, Utils)
     end
 end
 
-
-
-
+---------------------------------------------------------------------------
 
 return Player

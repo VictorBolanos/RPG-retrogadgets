@@ -423,21 +423,21 @@ BD.enemies = {
     -- ==================== CAPÍTULO 0 ====================
     {
         id = 1,
-        name = "Lobo Debil",
+        name = "Weak rat",
         spriteRow = 0,
         level = 1,
-        health = 30,
-        maxHealth = 30,
+        health = 5,
+        maxHealth = 5,
         mana = 10,
         maxMana = 10,
         stats = {
-            strength = 3,
+            strength = 1,
             agility = 2,
-            dexterity = 2,
-            intelligence = 1,
-            vitality = 3
+            dexterity = 0,
+            intelligence = 0,
+            vitality = 0
         },
-        expReward = 15,
+        expReward = 8,
         goldReward = 5,
         itemDrops = {},
         aiPattern = "basic_physical"
@@ -445,41 +445,41 @@ BD.enemies = {
     
     {
         id = 2,
-        name = "Lobo",
+        name = "Rat",
         spriteRow = 0,
-        level = 2,
-        health = 50,
-        maxHealth = 50,
-        mana = 15,
-        maxMana = 15,
+        level = 1,
+        health = 10,
+        maxHealth = 10,
+        mana = 10,
+        maxMana = 10,
         stats = {
-            strength = 5,
-            agility = 4,
-            dexterity = 3,
-            intelligence = 2,
-            vitality = 5
+            strength = 2,
+            agility = 2,
+            dexterity = 1,
+            intelligence = 0,
+            vitality = 0
         },
-        expReward = 30,
-        goldReward = 10,
+        expReward = 8,
+        goldReward = 5,
         itemDrops = {},
         aiPattern = "balanced"
     },
     
     {
         id = 3,
-        name = "Lobo Alpha",
+        name = "Alpha Rat",
         spriteRow = 0,
         level = 4,
-        health = 100,
-        maxHealth = 100,
+        health = 15,
+        maxHealth = 15,
         mana = 25,
         maxMana = 25,
         stats = {
-            strength = 8,
-            agility = 6,
-            dexterity = 5,
-            intelligence = 3,
-            vitality = 8
+            strength = 2,
+            agility = 3,
+            dexterity = 1,
+            intelligence = 0,
+            vitality = 1
         },
         expReward = 75,
         goldReward = 25,
@@ -490,7 +490,6 @@ BD.enemies = {
     }
 }
 
-
-
+---------------------------------------------------------------------------
 
 return BD

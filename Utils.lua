@@ -730,7 +730,7 @@ function Utils:DrawSkillInfo(skillData, player)
 end
 
 function Utils:PrintCombatScreen(player, enemy, enemyFrame, gameFont, gameFontAlter2, guiIcons, enemySpr)
-    videoPrincipal:Clear(color.black)
+    -- Don't clear - background is already drawn in update()
     
     -- Pintar sprite del enemigo centrado (con animación)
     local enemyX = 56  -- Centrado en 128px
@@ -788,25 +788,27 @@ end
 
 function Utils:PrintDecisionOptions(options, selectedIndex)
     local video3 = gdt.VideoChip2
-    local logIcons = rom.User.SpriteSheets["logIcons.png"]
+    
+    print("DEBUG: PrintDecisionOptions called")
+    print("DEBUG: options count = " .. #options)
+    print("DEBUG: selectedIndex = " .. selectedIndex)
     
     video3:Clear(color.black)
     
+    local startY = 2
     for i, option in ipairs(options) do
-        local yPos = (i - 1) * 8
-        
-        -- Pintar selector
+        local iconX, iconY = 4, 0  -- Icon not selected
         if i == selectedIndex then
-            video3:DrawSprite(vec2(0, yPos), logIcons, 5, 0, color.white, color.clear)
-        else
-            video3:DrawSprite(vec2(0, yPos), logIcons, 4, 0, color.white, color.clear)
+            iconX, iconY = 5, 0  -- Icon selected
         end
         
-        -- Pintar texto de opción
-        self:Tprint(video3, vec2(8, yPos), gameFont, nil, nil, nil, option.text)
+        print("DEBUG: Drawing option " .. i .. ": " .. option.text .. " at Y=" .. (startY + (i-1)*8))
+        
+        -- Draw icon + text (same as ShowOptions)
+        self:Tprint(video3, vec2(2, startY + (i-1)*8), gameFont, logIcons, iconX, iconY, option.text)
     end
 end
 
-
+---------------------------------------------------------------------------
 
 return Utils

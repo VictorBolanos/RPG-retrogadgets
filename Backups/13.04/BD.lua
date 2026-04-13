@@ -307,7 +307,189 @@ BD.passive_skills = {
 
 -- gameplay
 
+---------------------------------------------------------------------------
+-- SKILLS DATABASE
 
+BD.skills = {
+    -- ==================== ÁRBOL FÍSICO (Naranja) ====================
+    {
+        id = 1,
+        name = "Golpe Fuerte",
+        tree = "physical",
+        treeColumn = 0,
+        gridRow = 0,
+        spriteX = 0, 
+        spriteY = 0,
+        type = "active",
+        manaCost = 5,
+        description = "Golpe fisico\npotente",
+        requiredLevel = 1,
+        requiredSkill = nil,
+        damageMultiplier = 1.5,
+        damageType = "physical"
+    },
+    
+    {
+        id = 2,
+        name = "Fuerza Bruta",
+        tree = "physical",
+        treeColumn = 0,
+        gridRow = 1,
+        spriteX = 1, 
+        spriteY = 0,
+        type = "passive",
+        manaCost = 0,
+        description = "+10 ATK\npermanente",
+        requiredLevel = 2,
+        requiredSkill = 1,
+        statBonus = {attack = 10}
+    },
+    
+    {
+        id = 3,
+        name = "Corte Giratorio",
+        tree = "physical",
+        treeColumn = 0,
+        gridRow = 2,
+        spriteX = 2, 
+        spriteY = 0,
+        type = "active",
+        manaCost = 10,
+        description = "Golpe giratorio\ncon sangrado",
+        requiredLevel = 4,
+        requiredSkill = 2,
+        damageMultiplier = 2.0,
+        damageType = "physical",
+        applyDebuff = "bleeding"
+    },
+    
+    -- ==================== ÁRBOL MÁGICO (Cian) ====================
+    {
+        id = 4,
+        name = "Bola de Fuego",
+        tree = "magic",
+        treeColumn = 2,
+        gridRow = 0,
+        spriteX = 0, 
+        spriteY = 2,
+        type = "active",
+        manaCost = 8,
+        description = "Proyectil\nmagico basico",
+        requiredLevel = 1,
+        requiredSkill = nil,
+        damageMultiplier = 1.3,
+        damageType = "magical"
+    },
+    
+    {
+        id = 5,
+        name = "Mente Aguda",
+        tree = "magic",
+        treeColumn = 2,
+        gridRow = 1,
+        spriteX = 1, 
+        spriteY = 2,
+        type = "passive",
+        manaCost = 0,
+        description = "+10 mATK\npermanente",
+        requiredLevel = 2,
+        requiredSkill = 4,
+        statBonus = {mAttack = 10}
+    },
+    
+    {
+        id = 6,
+        name = "Rayo",
+        tree = "magic",
+        treeColumn = 2,
+        gridRow = 2,
+        spriteX = 2, 
+        spriteY = 2,
+        type = "active",
+        manaCost = 12,
+        description = "Descarga\nelectrica rapida",
+        requiredLevel = 4,
+        requiredSkill = 5,
+        damageMultiplier = 1.8,
+        damageType = "magical",
+        applyDebuff = "stun"
+    }
+}
 
+---------------------------------------------------------------------------
+-- ENEMIES DATABASE
+
+BD.enemies = {
+    -- ==================== CAPÍTULO 0 ====================
+    {
+        id = 1,
+        name = "Weak rat",
+        spriteRow = 0,
+        level = 1,
+        health = 5,
+        maxHealth = 5,
+        mana = 10,
+        maxMana = 10,
+        stats = {
+            strength = 1,
+            agility = 2,
+            dexterity = 0,
+            intelligence = 0,
+            vitality = 0
+        },
+        expReward = 8,
+        goldReward = 5,
+        itemDrops = {},
+        aiPattern = "basic_physical"
+    },
+    
+    {
+        id = 2,
+        name = "Rat",
+        spriteRow = 0,
+        level = 1,
+        health = 10,
+        maxHealth = 10,
+        mana = 10,
+        maxMana = 10,
+        stats = {
+            strength = 2,
+            agility = 2,
+            dexterity = 1,
+            intelligence = 0,
+            vitality = 0
+        },
+        expReward = 8,
+        goldReward = 5,
+        itemDrops = {},
+        aiPattern = "balanced"
+    },
+    
+    {
+        id = 3,
+        name = "Alpha Rat",
+        spriteRow = 0,
+        level = 4,
+        health = 15,
+        maxHealth = 15,
+        mana = 25,
+        maxMana = 25,
+        stats = {
+            strength = 2,
+            agility = 3,
+            dexterity = 1,
+            intelligence = 0,
+            vitality = 1
+        },
+        expReward = 75,
+        goldReward = 25,
+        itemDrops = {
+            {name = "Health Potion", chance = 50}
+        },
+        aiPattern = "smart_aggressive"
+    }
+}
+
+---------------------------------------------------------------------------
 
 return BD
