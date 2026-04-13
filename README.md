@@ -1,73 +1,73 @@
-# RPG RetroGadgets - Manual de Juego Completo
+# RPG RetroGadgets - Complete Game Manual
 
 ## Table of Contents
-1. [Introducción](#introducción)
-2. [Sinopsis](#sinopsis)
-3. [Personajes y Estadísticas](#personajes-y-estadísticas)
-4. [Sistema de Combate](#sistema-de-combate)
-5. [Habilidades y Árbol de Talentos](#habilidades-y-árbol-de-talentos)
-6. [Enemigos y IA](#enemigos-y-ia)
-7. [Historia y Capítulos](#historia-y-capítulos)
-8. [Sistema de Supervivencia](#sistema-de-supervivencia)
-9. [Controles e Interfaz](#controles-e-interfaz)
-10. [Guía de Progresión](#guía-de-progresión)
-11. [Consejos y Estrategias](#consejos-y-estrategias)
-12. [Información Técnica](#información-técnica)
+1. [Introduction](#introduction)
+2. [Synopsis](#synopsis)
+3. [Characters and Statistics](#characters-and-statistics)
+4. [Combat System](#combat-system)
+5. [Skills and Talent Trees](#skills-and-talent-trees)
+6. [Enemies and AI](#enemies-and-ai)
+7. [Story and Chapters](#story-and-chapters)
+8. [Survival System](#survival-system)
+9. [Controls and Interface](#controls-and-interface)
+10. [Progression Guide](#progression-guide)
+11. [Tips and Strategies](#tips-and-strategies)
+12. [Technical Information](#technical-information)
 
 ---
 
-## Introducción
+## Introduction
 
-¡Bienvenido a **RPG RetroGadgets**! Un juego de rol por turnos con una estética retro y una jugabilidad profunda. Prepárate para embarcarte en una aventura épica donde cada decisión cuenta, cada combate es un desafío estratégico y cada habilidad desbloqueada te acerca a convertirte en un legendario guerrero o mago.
+Welcome to **RPG RetroGadgets**! A turn-based role-playing game with retro aesthetics and deep gameplay. Get ready to embark on an epic adventure where every decision matters, every battle is a strategic challenge, and every unlocked skill brings you closer to becoming a legendary warrior or mage.
 
-**Características principales:**
-- Sistema de combate por turnos estratégico
-- Dos árboles de habilidades independientes (Físico y Mágico)
-- Sistema de supervivencia con hambre y sueño
-- Historia ramificada con múltiples finales
-- Más de 80 objetos diferentes
-- IA enemiga adaptativa
-
----
-
-## Sinopsis
-
-### Capítulo 0: "Despertar en la Oscuridad"
-
-Te despiertas en una oscuridad total, sin recuerdos de cómo llegaste aquí. El fruto del misterio y el peligro acechan en cada sombra. A medida que exploras este mundo desconocido, descubrirás que no estás solo y que fuerzas antiguas amenazan con destruir todo lo que conoces.
-
-Tu viaje comienza con una simple pregunta: **¿Quién eres realmente?** La respuesta te llevará a través de peligrosos bosques, mazmorras olvidadas y ciudades en ruinas, donde cada elección moldeará tu destino.
+**Key Features:**
+- Strategic turn-based combat system
+- Two independent skill trees (Physical and Magical)
+- Survival system with hunger and sleep
+- Branching story with multiple endings
+- Over 80 different items
+- Adaptive enemy AI
 
 ---
 
-## Personajes y Estadísticas
+## Synopsis
 
-### Estadísticas Base
+### Chapter 0: "Awakening in Darkness"
 
-| Estadística | Abreviatura | Descripción | Efecto Principal |
-|-------------|-------------|-------------|------------------|
-| **Fuerza** | STR | Poder físico | Determina el daño de ataque físico |
-| **Agilidad** | AGI | Velocidad y reflejos | Afecta velocidad y esquivar |
-| **Destreza** | DEX | Precisión y puntería | Afecta probabilidad de golpe y crítico |
-| **Inteligencia** | INT | Poder mágico | Determina el daño mágico y maná |
-| **Vitalidad** | VIT | Resistencia y salud | Afecta defensa y salud máxima |
+You wake up in total darkness, with no memory of how you got here. The fruits of mystery and danger lurk in every shadow. As you explore this unknown world, you'll discover that you're not alone and that ancient forces threaten to destroy everything you know.
 
-### Estadísticas Derivadas
+Your journey begins with a simple question: **Who are you really?** The answer will take you through dangerous forests, forgotten dungeons, and ruined cities, where every choice shapes your destiny.
 
-| Estadística | Fórmula de Cálculo | Máximo |
-|-------------|-------------------|--------|
-| **Ataque (ATK)** | `STR × 2` | - |
-| **Ataque Mágico (mATK)** | `INT × 2` | - |
-| **Defensa (DEF)** | `floor((VIT × 1.5) + (STR × 0.5))` | - |
-| **Defensa Mágica (mDEF)** | `floor((VIT × 1.5) + (INT × 0.5))` | - |
-| **Velocidad (SPEED)** | `AGI × 1` | - |
-| **Esquivar (DODGE)** | `min(80, floor(AGI × 0.8))` | 80% |
-| **Precisión (HIT)** | `min(80, floor(DEX × 0.8))` | 80% |
-| **Crítico (CRIT)** | `min(25, floor(DEX × 0.25))` | 25% |
-| **Regeneración de Salud (HEALTHR)** | `floor(VIT × 0.1)` | - |
-| **Regeneración de Maná (MANAR)** | `floor(INT × 0.1)` | - |
+---
 
-### Salud y Maná Máximos
+## Characters and Statistics
+
+### Base Statistics
+
+| Statistic | Abbreviation | Description | Main Effect |
+|-----------|--------------|-------------|-------------|
+| **Strength** | STR | Physical power | Determines physical attack damage |
+| **Agility** | AGI | Speed and reflexes | Affects speed and dodge |
+| **Dexterity** | DEX | Accuracy and precision | Affects hit chance and critical |
+| **Intelligence** | INT | Magical power | Determines magical damage and mana |
+| **Vitality** | VIT | Resistance and health | Affects defense and max health |
+
+### Derived Statistics
+
+| Statistic | Calculation Formula | Maximum |
+|-----------|-------------------|---------|
+| **Attack (ATK)** | `STR × 2` | - |
+| **Magic Attack (mATK)** | `INT × 2` | - |
+| **Defense (DEF)** | `floor((VIT × 1.5) + (STR × 0.5))` | - |
+| **Magic Defense (mDEF)** | `floor((VIT × 1.5) + (INT × 0.5))` | - |
+| **Speed (SPEED)** | `AGI × 1` | - |
+| **Dodge (DODGE)** | `min(80, floor(AGI × 0.8))` | 80% |
+| **Hit (HIT)** | `min(80, floor(DEX × 0.8))` | 80% |
+| **Critical (CRIT)** | `min(25, floor(DEX × 0.25))` | 25% |
+| **Health Regen (HEALTHR)** | `floor(VIT × 0.1)` | - |
+| **Mana Regen (MANAR)** | `floor(INT × 0.1)` | - |
+
+### Maximum Health and Mana
 
 ```lua
 maxHealth = min(999, 100 + (VIT × 5))
@@ -76,428 +76,428 @@ maxMana = min(999, 50 + (INT × 5))
 
 ---
 
-## Sistema de Combate
+## Combat System
 
-### Mecánicas Principales
+### Core Mechanics
 
-El combate es por turnos y se basa en un sistema de iniciativa donde la velocidad determina quién ataca primero.
+Combat is turn-based and uses an initiative system where speed determines who attacks first.
 
-#### 1. **Iniciativa**
+#### 1. **Initiative**
 ```lua
 initiative = SPEED + random(1, 10)
 ```
 
-#### 2. **Probabilidad de Golpe**
+#### 2. **Hit Chance**
 ```lua
 baseHitChance = 75%
 hitChance = baseHitChance + (attacker.HIT - defender.DODGE)
 hitChance = clamp(hitChance, 10%, 95%)
 ```
 
-#### 3. **Golpe Crítico**
+#### 3. **Critical Hit**
 ```lua
 if random(1, 100) <= attacker.CRIT then
     damage = damage × 2
 end
 ```
 
-#### 4. **Cálculo de Daño**
+#### 4. **Damage Calculation**
 
-**Daño Físico:**
+**Physical Damage:**
 ```lua
 baseDamage = attacker.ATK × skillMultiplier
 finalDamage = max(1, baseDamage - defender.DEF)
 ```
 
-**Daño Mágico:**
+**Magic Damage:**
 ```lua
 baseDamage = attacker.mATK × skillMultiplier
 finalDamage = max(1, baseDamage - defender.mDEF)
 ```
 
-### Estados Negativos (Debuffs)
+### Debuffs
 
-| Estado | Efecto | Duración |
+| Debuff | Effect | Duration |
 |--------|--------|----------|
-| **Sangrado** | 5% de la vida máxima por turno | 2 turnos |
-| **Aturdido** | Pierdes el turno | 1 turno |
+| **Bleeding** | 5% max HP/turn | 2 turns |
+| **Stun** | Skip turn | 1 turn |
 
-### Flujo de Combate
+### Combat Flow
 
-1. **Inicio:** Se calcula la iniciativa de todos los participantes
-2. **Turno del enemigo:** La IA selecciona una acción basada en su patrón
-3. **Turno del jugador:** Selecciona entre ataque normal, habilidades o usar objetos
-4. **Resolución:** Se aplican efectos y se verifica el estado de combate
-5. **Fin del turno:** Se actualizan los estados negativos y regeneraciones
+1. **Start:** Initiative is calculated for all participants
+2. **Enemy Turn:** AI selects action based on its pattern
+3. **Player Turn:** Choose between normal attack, skills, or items
+4. **Resolution:** Effects are applied and combat status is checked
+5. **End Turn:** Debuffs and regenerations are updated
 
 ---
 
-## Habilidades y Árbol de Talentos
+## Skills and Talent Trees
 
-### Árboles de Habilidades
+### Skill Trees
 
-El juego cuenta con **dos árboles de habilidades independientes** que puedes desarrollar según tu estilo de juego:
+The game features **two independent skill trees** you can develop based on your playstyle:
 
-### Árbol Físico (Naranja) - Guerrero
-
-```
-Nivel 1: Golpe Pesado (Activa, 1.5x daño físico)
-         
-Nivel 2: Fuerza Bruta (Pasiva, +10 ATK)
-         
-Nivel 4: Tornado Espada (Activa, 2.0x daño + sangrado)
-```
-
-### Árbol Mágico (Cian) - Mago
+### Physical Tree (Orange) - Warrior
 
 ```
-Nivel 1: Bola de Fuego (Activa, 1.3x daño mágico)
+Level 1: Heavy Strike (Active, 1.5x physical damage)
          
-Nivel 2: Mente Aguda (Pasiva, +10 mATK)
+Level 2: Brute Force (Passive, +10 ATK)
          
-Nivel 4: Rayo (Activa, 1.8x daño mágico + aturdimiento)
+Level 4: Spinning Slash (Active, 2.0x damage + bleeding)
 ```
 
-### Tipos de Habilidades
+### Magic Tree (Cyan) - Mage
 
-#### **Habilidades Activas**
-- Se usan en combate desde los botones de habilidades
-- Consumen maná
-- Tienen multiplicadores de daño
-- Pueden aplicar estados negativos
-- Requieren selección manual en cada turno
+```
+Level 1: Fireball (Active, 1.3x magic damage)
+         
+Level 2: Sharp Mind (Passive, +10 mATK)
+         
+Level 4: Lightning Bolt (Active, 1.8x magic damage + stun)
+```
 
-#### **Habilidades Pasivas**
-- Se aplican automáticamente al aprenderlas
-- Otorgan bonificaciones permanentes a estadísticas
-- No consumen maná
-- No se pueden desequipar
-- Siempre están activas
+### Skill Types
 
-### Sistema de Aprendizaje
+#### **Active Skills**
+- Used in combat from skill buttons
+- Consume mana
+- Have damage multipliers
+- Can apply debuffs
+- Require manual selection each turn
 
-Para aprender una habilidad necesitas:
+#### **Passive Skills**
+- Applied automatically when learned
+- Give permanent stat bonuses
+- Don't consume mana
+- Can't be unequipped
+- Always active
+
+### Learning System
+
+To learn a skill you need:
 
 ```lua
-1. Tener el nivel requerido
-2. Tener la habilidad prerequisito (si aplica)
-3. Tener 1 Punto de Habilidad disponible
+1. Have sufficient level
+2. Have prerequisite skill (if applicable)
+3. Have 1 Skill Point available
 ```
 
-**Puntos de Habilidad por Nivel:**
-- Cada nivel ganado: +1 Punto de Habilidad
-- Cada 5 niveles: +2 Puntos de Estadística adicionales
+**Skill Points per Level:**
+- Each level gained: +1 Skill Point
+- Every 5 levels: +2 additional Stat Points
 
 ---
 
-## Enemigos y IA
+## Enemies and AI
 
-### Enemigos del Capítulo 0
+### Chapter 0 Enemies
 
-| ID | Nombre | Nivel | Vida | Patrón IA | EXP | Oro | Botín |
-|----|-------|-------|------|-----------|-----|-----|-------|
-| 1 | Lobo Débil | 1 | 30 | básico_físico | 15 | 5 | - |
-| 2 | Lobo | 2 | 50 | equilibrado | 30 | 10 | - |
-| 3 | Lobo Alfa | 4 | 100 | inteligente_agresivo | 75 | 25 | Poción de Salud (50%) |
+| ID | Name | Level | HP | AI Pattern | EXP | Gold | Drop |
+|----|------|-------|----|-----------|----|-----|------|
+| 1 | Weak Wolf | 1 | 30 | basic_physical | 15 | 5 | - |
+| 2 | Wolf | 2 | 50 | balanced | 30 | 10 | - |
+| 3 | Alpha Wolf | 4 | 100 | smart_aggressive | 75 | 25 | Health Potion (50%) |
 
-### Patrones de IA
+### AI Patterns
 
-#### **básico_físico**
-- Siempre usa ataque físico
-- Sin estrategia especial
-- Diseñado para enemigos débiles
+#### **basic_physical**
+- Always uses physical attack
+- No special strategy
+- Designed for weak enemies
 
-#### **equilibrado**
-- Alterna entre físico y mágico (50/50)
-- Usa ataque fuerte si jugador < 50% vida
-- Para enemigos normales
+#### **balanced**
+- Alternates physical/magical (50/50)
+- Strong attack if player < 50% HP
+- For normal enemies
 
-#### **inteligente_agresivo**
-- Prioriza rematar (jugador < 30% vida)
-- Presión constante (jugador < 60% vida)
-- 60% físico, 40% mágico
-- Para mini-jefes
+#### **smart_aggressive**
+- Prioritizes finishing (player < 30% HP)
+- Constant pressure (player < 60% HP)
+- 60% physical, 40% magical
+- For mini-bosses
 
 ---
 
-## Historia y Capítulos
+## Story and Chapters
 
-### Motor de Capítulos
+### Chapter Engine
 
-El sistema de capítulos gestiona toda la narrativa del juego:
+The chapter system manages all game narrative:
 
-**Chapters.lua contiene ÚNICAMENTE:**
-- Datos de eventos (diálogos, decisiones, encuentros)
-- Estructura de ramificación de historia
-- Gestores de eventos (despacha a otros sistemas)
+**Chapters.lua contains ONLY:**
+- Event data (dialogues, decisions, encounters)
+- Story branching structure
+- Event handlers (dispatch to other systems)
 
-**Chapters.lua NO contiene:**
-- Lógica de combate (movida a CombatSystem.lua)
-- Lógica de decadencia (movida a Player.lua)
-- Lógica de renderizado (permanece en Utils.lua)
+**Chapters.lua does NOT contain:**
+- Combat logic (moved to CombatSystem.lua)
+- Player decay logic (moved to Player.lua)
+- Rendering logic (stays in Utils.lua)
 
-### Tipos de Eventos
+### Event Types
 
-| Tipo | Descripción | Acción del Gestor |
-|------|-------------|-------------------|
-| `dialogue` | Texto narrativo | Muestra texto, establece siguiente evento |
-| `decision` | Elección del jugador | Muestra opciones, espera entrada |
-| `combat` | Batalla contra enemigo | Crea enemigo, inicia combate |
-| `reward` | Otorga objetos/estadísticas | Añade objetos, modifica estadísticas |
-| `chapter_end` | Fin de capítulo | Actualiza número de capítulo |
+| Type | Description | Handler Does |
+|------|-------------|--------------|
+| `dialogue` | Narrative text | Display text, set next event |
+| `decision` | Player choice | Show options, wait for input |
+| `combat` | Battle vs enemy | Create enemy, start combat |
+| `reward` | Give items/stats | Add items, modify stats |
+| `chapter_end` | Chapter ending | Update chapter number |
 
-### Capítulo 0: "Despertar en la Oscuridad"
+### Chapter 0: "Awakening in Darkness"
 
-#### Flujo del Capítulo
+#### Chapter Flowchart
 
 ```
-[EVENTO 0] Introducción: "Te despiertas en la oscuridad..."
+[EVENT 0] Intro: "You wake up in darkness..."
     
-[EVENTO 1] COMBATE: Lobo Débil
+[EVENT 1] COMBAT: Weak Wolf
     
-[EVENTO 2] Diálogo: "Has derrotado al lobo."
+[EVENT 2] Dialogue: "You defeated the wolf."
     
-[EVENTO 3] DECISIÓN: ¿Qué hacer?
-     RAMA A: "Avanzar"
+[EVENT 3] DECISION: What to do?
+     BRANCH A: "Go forward"
         
-        [EVENTO 4] Diálogo: "Avanzas..."
+        [EVENT 4] Dialogue: "You advance..."
         
-        [EVENTO 5] COMBATE: Lobo
-     RAMA B: "Buscar salida"
+        [EVENT 5] COMBAT: Wolf
+     BRANCH B: "Find exit"
         
-        [EVENTO 10] Diálogo: "¡Encuentras suministros!"
+        [EVENT 10] Dialogue: "You find supplies!"
         
-        [EVENTO 11] RECOMPENSA: +20 hambre
+        [EVENT 11] REWARD: +20 hunger
         
-        [EVENTO 12] Diálogo: "Regresas al camino"
+        [EVENT 12] Dialogue: "Return to path"
         
-        [EVENTO 5] COMBATE: Lobo (converge)
+        [EVENT 5] COMBAT: Wolf (converges)
 
-[EVENTO 5] COMBATE: Lobo
+[EVENT 5] COMBAT: Wolf
     
-[EVENTO 15] Diálogo: "¡Aparece el Alfa!"
+[EVENT 15] Dialogue: "Alpha appears!"
     
-[EVENTO 16] COMBATE: Lobo Alfa (MINI-JEFE)
+[EVENT 16] COMBAT: Alpha Wolf (MINI-BOSS)
     
-[EVENTO 20] Diálogo: "¡Victoria!"
+[EVENT 20] Dialogue: "Victory!"
     
-[EVENTO 21] DECISIÓN FINAL: ¿Qué camino?
-     [EVENTO 30] FINAL A: Ciudad (Capítulo 1.0)
-     [EVENTO 40] FINAL B: Mazmorras (Capítulo 1.1)
+[EVENT 21] FINAL DECISION: Which way?
+     [EVENT 30] ENDING A: City (Chapter 1.0)
+     [EVENT 40] ENDING B: Dungeons (Chapter 1.1)
 ```
 
-#### Características de Diseño
+#### Design Features
 
-- **Caminos laterales** - Diferentes rutas convergen
-- **Ramificación controlada** - Sin explosión de complejidad
-- **Múltiples finales** - Afecta el siguiente capítulo
-- **Progresión de dificultad** - Débil  Normal  Jefe
-
----
-
-## Sistema de Supervivencia
-
-### Hambre
-
-| Estado | Efecto |
-|--------|--------|
-| < 25% | -1 HP por turno (texto rojo) |
-| 0% | -3 HP por turno (texto rojo parpadeante) |
-
-### Sueño
-
-| Estado | Efecto |
-|--------|--------|
-| < 25% | -25% todas las estadísticas |
-| 0% | Desmayo: -10% EXP + reinicio a 50% |
-
-### Gestión de Recursos
-
-- **Comida:** Restaura hambre y algo de salud
-- **Bebidas/Café:** Restaura sueño
-- **Pociones:** Restoran salud y maná inmediatamente
-- **Descansar:** Recupera sueño pero avanza el tiempo
+- **Side-paths** - Different routes converge
+- **Controlled branching** - No complexity explosion
+- **Multiple endings** - Affects next chapter
+- **Difficulty progression** - Weak  Normal  Boss
 
 ---
 
-## Controles e Interfaz
+## Survival System
 
-### Navegación General
+### Hunger
 
-| Control | Función |
-|---------|---------|
-| **DPad** | Mover cursor |
-| **Botón X** | Confirmar / Continuar |
-| **Botón Z** | Abrir árbol de habilidades |
-| **Botón S** | Abrir inventario |
-| **Botón A** | Abrir ficha de personaje |
-
-### Controles de Combate
-
-| Control | Función |
-|---------|---------|
-| **ScreenButton 1** | Usar habilidad ranura 1 |
-| **ScreenButton 2** | Usar habilidad ranura 2 |
-| **Botón X** | Continuar después de mensajes |
-
-### Decisiones
-
-| Control | Función |
-|---------|---------|
-| **DPad arriba/abajo** | Seleccionar opción |
-| **Botón X** | Confirmar decisión |
-
-### Botones de Depuración
-
-| Botón | Efecto |
+| State | Effect |
 |-------|--------|
+| < 25% | -1 HP/turn (red text) |
+| 0% | -3 HP/turn (flashing red text) |
+
+### Sleep
+
+| State | Effect |
+|-------|--------|
+| < 25% | -25% all stats |
+| 0% | Faint: -10% EXP + reset to 50% |
+
+### Resource Management
+
+- **Food:** Restores hunger and some health
+- **Drinks/Coffee:** Restores sleep
+- **Potions:** Restore health and mana immediately
+- **Rest:** Recovers sleep but advances time
+
+---
+
+## Controls and Interface
+
+### General Navigation
+
+| Control | Function |
+|---------|---------|
+| **DPad** | Move cursor |
+| **Button X** | Confirm / Continue |
+| **Button Z** | Open skill tree |
+| **Button S** | Open inventory |
+| **Button A** | Open character sheet |
+
+### Combat Controls
+
+| Control | Function |
+|---------|---------|
+| **ScreenButton 1** | Use skill slot 1 |
+| **ScreenButton 2** | Use skill slot 2 |
+| **Button X** | Continue after messages |
+
+### Decisions
+
+| Control | Function |
+|---------|---------|
+| **DPad up/down** | Select option |
+| **Button X** | Confirm decision |
+
+### Debug Buttons
+
+| Button | Effect |
+|--------|--------|
 | **U** | +250 EXP |
 | **I** | -1 HP |
 | **O** | +1 HP |
 
 ---
 
-## Guía de Progresión
+## Progression Guide
 
-### Niveles y Experiencia
+### Levels and Experience
 
 ```lua
--- Cada nivel:
+-- Each level:
 statPoints = +2
 skillPoints = +1
 
--- Bono cada 5 niveles:
+-- Bonus every 5 levels:
 if level % 5 == 0 then
-    statPoints = +2 adicionales
+    statPoints = +2 additional
 end
 
--- EXP requerida:
+-- Required EXP:
 expToNextLevel = floor(10 × (1.425 ^ (level - 1)))
 ```
 
-### Recomendaciones por Nivel
+### Recommendations by Level
 
-#### **Niveles 1-5: Supervivencia Básica**
-- Enfócate en Vitalidad para mayor supervivencia
-- Aprende habilidades básicas de tu árbol preferido
-- Gestiona bien el hambre y sueño
+#### **Levels 1-5: Basic Survival**
+- Focus on Vitality for better survival
+- Learn basic skills from your preferred tree
+- Manage hunger and sleep well
 
-#### **Niveles 6-10: Especialización**
-- Invierte puntos en tu estadística principal (STR o INT)
-- Desbloquea habilidades de nivel 4
-- Optimiza equipo y objetos
+#### **Levels 6-10: Specialization**
+- Invest points in your main stat (STR or INT)
+- Unlock level 4 skills
+- Optimize equipment and items
 
-#### **Niveles 11+: Dominio**
-- Balancea estadísticas secundarias
-- Experimenta con combinaciones de habilidades
-- Prepara para desafíos de jefes
+#### **Levels 11+: Mastery**
+- Balance secondary stats
+- Experiment with skill combinations
+- Prepare for boss challenges
 
-### Estrategias de Construcción
+### Build Strategies
 
-#### **Guerrero Puro**
-- Enfoque en STR y VIT
-- Árbol físico completo
-- Equipo de daño alto
+#### **Pure Warrior**
+- Focus on STR and VIT
+- Complete physical tree
+- High damage equipment
 
-#### **Mago Puro**
-- Enfoque en INT y AGI
-- Árbol mágico completo
-- Gestión de maná crucial
+#### **Pure Mage**
+- Focus on INT and AGI
+- Complete magic tree
+- Mana management crucial
 
-#### **Híbrido Equilibrado**
-- Balance entre STR e INT
-- Habilidades de ambos árboles
-- Versatilidad en combate
-
----
-
-## Consejos y Estrategias
-
-### Combate
-
-1. **Conoce a tu enemigo:** Observa patrones de IA
-2. **Gestiona el maná:** No uses habilidades innecesariamente
-3. **Aprovecha estados negativos:** Sangrado y aturdimiento son clave
-4. **Posición estratégica:** Elige el momento adecuado para habilidades potentes
-
-### Supervivencia
-
-1. **Mantén hambre > 50%:** Evita daño por turno
-2. **Duerme regularmente:** No dejes que el sueño llegue a 0%
-3. **Stock de consumibles:** Lleva siempre comida y pociones
-4. **Planifica descansos:** Descansa en momentos seguros
-
-### Progresión
-
-1. **Especialízate gradualmente:** No distribuyas puntos demasiado
-2. **Experimenta con habilidades:** Prueba diferentes combinaciones
-3. **Optimiza equipo:** Cambia según enemigos y situación
-4. **Guarda para emergencias:** Ten recursos para momentos difíciles
-
-### Economía
-
-1. **Vende objetos innecesarios:** No acumules basura
-2. **Invierte en equipo clave:** Prioriza mejoras significativas
-3. **Compra consumibles estratégicos:** No te quedes sin recursos
-4. **Aprovecha recompensas:** Completa todos los eventos opcionales
+#### **Balanced Hybrid**
+- Balance between STR and INT
+- Skills from both trees
+- Combat versatility
 
 ---
 
-## Información Técnica
+## Tips and Strategies
 
-### Estadísticas del Sistema
+### Combat
 
-| Sistema | Cantidad |
+1. **Know your enemy:** Observe AI patterns
+2. **Manage mana:** Don't waste skills unnecessarily
+3. **Exploit debuffs:** Bleeding and stun are key
+4. **Strategic timing:** Choose right moments for powerful skills
+
+### Survival
+
+1. **Keep hunger > 50%:** Avoid turn damage
+2. **Sleep regularly:** Don't let sleep reach 0%
+3. **Stock consumables:** Always carry food and potions
+4. **Plan rests:** Rest in safe moments
+
+### Progression
+
+1. **Specialize gradually:** Don't spread points too thin
+2. **Experiment with skills:** Try different combinations
+3. **Optimize equipment:** Change based on enemies and situation
+4. **Save for emergencies:** Keep resources for tough moments
+
+### Economy
+
+1. **Sell unnecessary items:** Don't accumulate junk
+2. **Invest in key equipment:** Prioritize significant upgrades
+3. **Buy strategic consumables:** Don't run out of resources
+4. **Take advantage of rewards:** Complete all optional events
+
+---
+
+## Technical Information
+
+### System Statistics
+
+| System | Quantity |
 |---------|----------|
-| **Archivos .lua** | 8 archivos |
-| **Habilidades** | 6 habilidades (3 físicas + 3 mágicas) |
-| **Enemigos** | 3 enemigos |
-| **Eventos Capítulo 0** | 13 eventos |
-| **Combates** | 3 combates |
-| **Objetos** | 80 objetos |
+| **.lua Files** | 8 files |
+| **Skills** | 6 skills (3 physical + 3 magic) |
+| **Enemies** | 3 enemies |
+| **Chapter 0 Events** | 13 events |
+| **Combats** | 3 combats |
+| **Items** | 80 items |
 
-### Líneas de Código
+### Lines of Code
 
-| Archivo | Líneas | Responsabilidad |
-|---------|--------|-----------------|
-| BD.lua | ~506 | Datos únicamente |
-| Skill.lua | ~190 | Lógica de habilidades |
-| Enemy.lua | ~250 | IA y comportamiento |
-| **CombatSystem.lua** | **~127** | **Lógica de combate** |
-| Chapters.lua | ~238 | Historia únicamente |
-| Player.lua | ~617 | Jugador + decadencia |
-| Utils.lua | ~811 | Renderizado |
-| GameController.lua | ~1089 | Orquestación |
-| **TOTAL** | **~3828 líneas** | **Profesional** |
+| File | Lines | Responsibility |
+|------|-------|---------------|
+| BD.lua | ~506 | Data only |
+| Skill.lua | ~190 | Skills logic |
+| Enemy.lua | ~250 | AI & behavior |
+| **CombatSystem.lua** | **~127** | **Combat logic** |
+| Chapters.lua | ~238 | Story only |
+| Player.lua | ~617 | Player + decay |
+| Utils.lua | ~811 | Rendering |
+| GameController.lua | ~1089 | Orchestration |
+| **TOTAL** | **~3828 lines** | **Professional** |
 
-### Arquitectura del Sistema
+### System Architecture
 
-Este es un **RPG arquitectado profesionalmente** con:
+This is a **professionally architected RPG** with:
 
-- **Perfecta separación de responsabilidades**
-- **8 módulos especializados**
-- **Chapters.lua es puro dato** (sin lógica de combate)
-- **CombatSystem.lua maneja todo el combate**
-- **Player.lua maneja hambre/sueño**
-- **Combate por turnos** con iniciativa e IA
-- **Sistema de habilidades** con árboles fragmentados
-- **IA enemiga** con 3 patrones
-- **Capítulo 0 completo** con ramificación
-- **~3828 líneas** de código limpio y mantenible
-- **100% en inglés** en código y comentarios
+- **Perfect separation of concerns**
+- **8 specialized modules**
+- **Chapters.lua is pure data** (no combat logic)
+- **CombatSystem.lua handles all combat**
+- **Player.lua handles hunger/sleep**
+- **Turn-based combat** with initiative & AI
+- **Skill system** with fragmented trees
+- **Enemy AI** with 3 patterns
+- **Complete Chapter 0** with branching
+- **~3828 lines** of clean, maintainable code
+- **100% English** code & comments
 
-**La arquitectura es escalable, profesional y lista para producción.**
-
----
-
-## Créditos y Agradecimientos
-
-*Manual de juego generado el 13 de abril de 2026*  
-*Versión del sistema: 2.0.0 - Arquitectura Refactorizada*  
-*Idioma: Español*
-
-¡Gracias por jugar a RPG RetroGadgets! Esperamos que disfrutes de esta aventura épica.
+**The architecture is scalable, professional, and production-ready.**
 
 ---
 
-**¡Que tu viaje sea legendario!**
+## Credits and Acknowledgments
+
+*Game manual generated on April 13, 2026*  
+*System version: 2.0.0 - Refactored Architecture*  
+*Language: English*
+
+Thank you for playing RPG RetroGadgets! We hope you enjoy this epic adventure.
+
+---
+
+**May your journey be legendary!**
