@@ -67,8 +67,12 @@ function CombatSystem:ExecuteTurn(player, enemy, action, gameState, log, logIcon
         end
     end
     
+    print("DEBUG: CombatSystem - Before ApplyHungerSleepDecay")
+    
     -- Apply hunger/sleep decay
     player:ApplyHungerSleepDecay(log, logIcons, Utils)
+    
+    print("DEBUG: CombatSystem - After ApplyHungerSleepDecay")
     
     -- Reset player turn for next round
     print("DEBUG: CombatSystem - Resetting playerTurn to true")
@@ -116,6 +120,9 @@ function CombatSystem:HandleVictory(player, enemy, gameState, log, logIcons, Uti
     -- Clear combat state
     gameState.inCombat = false
     gameState.currentEnemy = nil
+    gameState.combatMenuActive = false
+    gameState.playerTurn = true
+    gdt.VideoChip2:Clear(color.black)
     gameState.waitingForInput = true
     gameState.nextEvent = gameState.combatVictoryEvent
 end
@@ -127,6 +134,9 @@ function CombatSystem:HandleDefeat(player, gameState, log, logIcons, Utils)
     Utils:AddLogEntry(log, logIcons, 0, 0, "You have been defeated...")
     
     gameState.inCombat = false
+    gameState.currentEnemy = nil
+    gameState.combatMenuActive = false
+    gdt.VideoChip2:Clear(color.black)
     gameState.gameOver = true
 end
 

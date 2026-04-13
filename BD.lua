@@ -234,7 +234,6 @@ BD.armor_recipes = {
 
 -- misc
 
-
 ---------------------------------------------------------------------------
 
 -- ENEMIES
@@ -291,7 +290,6 @@ BD.passive_skills = {
     {name = "Stealth", effectTag = "avoid detection", type = "passive", level = 1, description = "Allows you to move undetected."},
 }
 
-
 ---------------------------------------------------------------------------
 
 -- TEXT
@@ -314,7 +312,7 @@ BD.skills = {
     -- ==================== ÁRBOL FÍSICO (Naranja) ====================
     {
         id = 1,
-        name = "Golpe Fuerte",
+        name = "Power Strike",
         tree = "physical",
         treeColumn = 0,
         gridRow = 0,
@@ -322,7 +320,7 @@ BD.skills = {
         spriteY = 0,
         type = "active",
         manaCost = 5,
-        description = "Golpe fisico\npotente",
+        description = "Powerful physical blow",
         requiredLevel = 1,
         requiredSkill = nil,
         damageMultiplier = 1.5,
@@ -331,7 +329,7 @@ BD.skills = {
     
     {
         id = 2,
-        name = "Fuerza Bruta",
+        name = "Brute Force",
         tree = "physical",
         treeColumn = 0,
         gridRow = 1,
@@ -339,7 +337,7 @@ BD.skills = {
         spriteY = 0,
         type = "passive",
         manaCost = 0,
-        description = "+10 ATK\npermanente",
+        description = "Permanent +10 ATK",
         requiredLevel = 2,
         requiredSkill = 1,
         statBonus = {attack = 10}
@@ -347,7 +345,7 @@ BD.skills = {
     
     {
         id = 3,
-        name = "Corte Giratorio",
+        name = "Spinning Slash",
         tree = "physical",
         treeColumn = 0,
         gridRow = 2,
@@ -355,7 +353,7 @@ BD.skills = {
         spriteY = 0,
         type = "active",
         manaCost = 10,
-        description = "Golpe giratorio\ncon sangrado",
+        description = "Spinning strike with bleeding",
         requiredLevel = 4,
         requiredSkill = 2,
         damageMultiplier = 2.0,
@@ -363,10 +361,10 @@ BD.skills = {
         applyDebuff = "bleeding"
     },
     
-    -- ==================== ÁRBOL MÁGICO (Cian) ====================
+    -- ==================== MAGIC TREE (Cyan) ====================
     {
         id = 4,
-        name = "Bola de Fuego",
+        name = "Fireball",
         tree = "magic",
         treeColumn = 2,
         gridRow = 0,
@@ -374,7 +372,7 @@ BD.skills = {
         spriteY = 2,
         type = "active",
         manaCost = 8,
-        description = "Proyectil\nmagico basico",
+        description = "Basic magic projectile",
         requiredLevel = 1,
         requiredSkill = nil,
         damageMultiplier = 1.3,
@@ -383,7 +381,7 @@ BD.skills = {
     
     {
         id = 5,
-        name = "Mente Aguda",
+        name = "Sharp Mind",
         tree = "magic",
         treeColumn = 2,
         gridRow = 1,
@@ -391,7 +389,7 @@ BD.skills = {
         spriteY = 2,
         type = "passive",
         manaCost = 0,
-        description = "+10 mATK\npermanente",
+        description = "Permanent +10 mATK",
         requiredLevel = 2,
         requiredSkill = 4,
         statBonus = {mAttack = 10}
@@ -399,7 +397,7 @@ BD.skills = {
     
     {
         id = 6,
-        name = "Rayo",
+        name = "Lightning Bolt",
         tree = "magic",
         treeColumn = 2,
         gridRow = 2,
@@ -407,7 +405,7 @@ BD.skills = {
         spriteY = 2,
         type = "active",
         manaCost = 12,
-        description = "Descarga\nelectrica rapida",
+        description = "Fast electric discharge",
         requiredLevel = 4,
         requiredSkill = 5,
         damageMultiplier = 1.8,
@@ -426,16 +424,16 @@ BD.enemies = {
         name = "Weak rat",
         spriteRow = 0,
         level = 1,
-        health = 5,
-        maxHealth = 5,
+        health = 500,
+        maxHealth = 15,
         mana = 10,
         maxMana = 10,
         stats = {
-            strength = 1,
+            strength = 2,
             agility = 2,
             dexterity = 0,
             intelligence = 0,
-            vitality = 0
+            vitality = 1
         },
         expReward = 8,
         goldReward = 5,
@@ -448,16 +446,16 @@ BD.enemies = {
         name = "Rat",
         spriteRow = 0,
         level = 1,
-        health = 10,
-        maxHealth = 10,
+        health = 20,
+        maxHealth = 20,
         mana = 10,
         maxMana = 10,
         stats = {
             strength = 2,
-            agility = 2,
+            agility = 3,
             dexterity = 1,
             intelligence = 0,
-            vitality = 0
+            vitality = 2
         },
         expReward = 8,
         goldReward = 5,
@@ -470,16 +468,16 @@ BD.enemies = {
         name = "Alpha Rat",
         spriteRow = 0,
         level = 4,
-        health = 15,
-        maxHealth = 15,
+        health = 30,
+        maxHealth = 30,
         mana = 25,
         maxMana = 25,
         stats = {
-            strength = 2,
-            agility = 3,
+            strength = 3,
+            agility = 4,
             dexterity = 1,
             intelligence = 0,
-            vitality = 1
+            vitality = 2
         },
         expReward = 75,
         goldReward = 25,

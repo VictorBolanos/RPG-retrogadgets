@@ -9,7 +9,7 @@ local BD = require("BD.lua")
 
 local Player = {}
 
-function Player:new(chapter, subChapter, gold, name, level, exp, expToNextLevel, points, hunger, sleepyness, health, maxHealth, mana, maxMana, baseStats, equipment, inventory, skills, selectedSkills)
+function Player:new(chapter, subChapter, gold, name, level, exp, expToNextLevel, points, skillPoints, hunger, sleepyness, health, maxHealth, mana, maxMana, baseStats, equipment, inventory, skills, selectedSkills)
     local obj = {
         chapter = chapter,
         subChapter = subChapter,
@@ -21,7 +21,7 @@ function Player:new(chapter, subChapter, gold, name, level, exp, expToNextLevel,
         exp = exp or 0,
         expToNextLevel = expToNextLevel or CalculateExpToNextLevel(level or 1),
         points = points or 0,
-        skillPoints = 0, -- Puntos para aprender skills
+        skillPoints = skillPoints or 0,
 
         hunger = hunger,
         sleepyness = sleepyness,
@@ -111,11 +111,13 @@ end
 -- health
 
 function Player:plusHealth(health)
+    print("DEBUG plusHealth: current=" .. self.health .. ", adding=" .. health .. ", maxHealth=" .. self.maxHealth)
     if (self.health + health > self.maxHealth) then
         self.health = self.maxHealth
     else
         self.health = self.health + health
     end
+    print("DEBUG plusHealth: new health=" .. self.health)
 end
 
 function Player:minusHealth(health)
@@ -185,7 +187,6 @@ function Player:plusStat(stat, value)
     self.stats[stat] = self.baseStats[stat]
 end
 
-
 function Player:minusStat(stat, value)
     if (self.baseStats[stat] - value < 0) then
         self.baseStats[stat] = 0
@@ -195,7 +196,6 @@ function Player:minusStat(stat, value)
     self.stats[stat] = self.baseStats[stat]
 end
 
-
 function Player:plusPoints(points)
     if (self.points + points > 100) then
         self.points = 100
@@ -204,7 +204,6 @@ function Player:plusPoints(points)
     end
 end
 
-
 function Player:minusPoints(points)
     if (self.points - points < 0) then
         self.points = 0
@@ -212,7 +211,6 @@ function Player:minusPoints(points)
         self.points = self.points - points
     end
 end
-
 
 function Player:updateSubStats()
     -- Referencia directa a los stats base para mejor legibilidad
@@ -246,7 +244,7 @@ end
 function Player:equipItem(itemName, slot)
     local itemData = Utils:GetItemData(itemName)
     if not itemData then
-        print("Error: El ítem '"..itemName.."' no existe.")
+        print("Error: Item '"..itemName.."' does not exist.")
         return
     end
 
@@ -262,7 +260,7 @@ function Player:equipItem(itemName, slot)
     }
 
     if validSlots[slot] ~= itemData.type then
-        print("Error: No puedes equipar '"..itemName.."' en '"..slot.."'.")
+        print("Error: Cannot equip '"..itemName.."' in '"..slot.."'.")
         return
     end
 
@@ -280,11 +278,10 @@ function Player:equipItem(itemName, slot)
     self:removeItemFromInventory(itemName, 1)
 end
 
-
 function Player:unequipItem(slot)
     local itemName = self.equipment[slot]
     if not itemName then
-        print("Error: No hay nada equipado en '"..slot.."'.")
+        print("Error: Nothing equipped in '"..slot.."'.")
         return
     end
 
@@ -362,8 +359,6 @@ function Player:processEquipEffects(itemData, operation)
     self:updateSubStats()
 end
 
-
-
 ---------------------------------------------------------------------------
 -- inventory
 
@@ -372,12 +367,12 @@ function Player:addItemToInventory(itemName, quantity)
     local current = self.inventory[itemName] or 0
     
     if current + quantity > 99 then
-        print("Límite de stack alcanzado para "..itemName.." (99)")
+        print("Stack limit reached for "..itemName.." (99)")
         return false
     end
     
     if current == 0 and self:countInventoryItems() >= 24 then
-        print("Inventario lleno (24 slots máx.)")
+        print("Inventory full (24 slots max)")
         return false
     end
     
@@ -410,27 +405,48 @@ function Player:removeItemFromInventory(itemName, quantity)
     return true
 end
 
-
 function Player:useItem(itemName)
     local itemData = Utils:GetItemData(itemName)
-    if not itemData or itemData.type ~= "consumable" then return false end
+    if not itemData or itemData.type ~= "consumable" then 
+        print("ERROR: Item not found or not consumable: " .. tostring(itemName))
+        return false 
+    end
+    
+    print("DEBUG: Using item " .. itemName)
+    print("DEBUG: effectTags = " .. table.concat(itemData.effectTags, ", "))
     
     -- Procesar efectos
     for _, effect in ipairs(itemData.effectTags) do
+        -- HP
         local value = effect:match("(%d+) HP")
         if value then
+            print("DEBUG: Healing " .. value .. " HP")
             self:plusHealth(tonumber(value))
         end
         
+        -- MANA
         value = effect:match("(%d+) MANA")
         if value then
+            print("DEBUG: Restoring " .. value .. " MANA")
             self:plusMana(tonumber(value))
         end
         
-        -- Puedes añadir más efectos aquí
+        -- HUNGER (HUNG) - decrease hunger (add satiety)
+        value = effect:match("(%d+) HUNG")
+        if value then
+            print("DEBUG: Adding " .. value .. " hunger (satiety)")
+            self.hunger = math.min(100, self.hunger + tonumber(value))
+        end
+        
+        -- SLEEPYNESS (SLEEP) - decrease sleepyness (add rest)
+        value = effect:match("(%d+) SLEEP")
+        if value then
+            print("DEBUG: Adding " .. value .. " sleep (rest)")
+            self.sleepyness = math.min(100, self.sleepyness + tonumber(value))
+        end
     end
     
-    -- Eliminar un ítem del inventario
+    -- Remove one item from inventory
     return self:removeItemFromInventory(itemName, 1)
 end
 
@@ -477,7 +493,6 @@ function Player:discoverRecipes()
     end
 end
 
-
 -- Método para verificar ingredientes
 function Player:hasIngredients(recipe)
     for _, ingredient in ipairs(recipe.ingredients) do
@@ -516,9 +531,9 @@ function Player:executeRecipe(recipe)
                 quantity = tonumber(quantity)
                 self:addItemToInventory(itemName, quantity)
             end
-            return false, "No hay espacio en el inventario"
+            return false, "Not enough inventory space"
         end
-        return true, "¡Receta completada!"
+        return true, "Recipe completed!"
     end
     
     -- Si es un item nuevo, verificamos si hay espacio en el inventario
@@ -529,7 +544,7 @@ function Player:executeRecipe(recipe)
             quantity = tonumber(quantity)
             self:addItemToInventory(itemName, quantity)
         end
-        return false, "Inventario lleno (24 slots máx.)"
+        return false, "Inventory full (24 slots max)"
     end
     
     -- Si hay espacio, procedemos a añadir el item nuevo
@@ -541,7 +556,7 @@ function Player:executeRecipe(recipe)
             quantity = tonumber(quantity)
             self:addItemToInventory(itemName, quantity)
         end
-        return false, "Error: Item resultante no encontrado"
+        return false, "Error: Result item not found"
     end
     
     -- Encontrar el sprite más alto usado en el inventario
@@ -578,10 +593,10 @@ function Player:executeRecipe(recipe)
             quantity = tonumber(quantity)
             self:addItemToInventory(itemName, quantity)
         end
-        return false, "Error al añadir el item"
+        return false, "Error adding item"
     end
     
-    return true, "¡Receta completada!"
+    return true, "Recipe completed!"
 end
 
 ---------------------------------------------------------------------------

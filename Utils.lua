@@ -42,51 +42,70 @@ function Utils:PlayAudio(snd, channel, isLoop)
 	
 end
 
-
-function Utils:Tprint(chip, pos, font, spriteSheet, spriteX, spriteY, txt, textColor)
-    textColor = textColor or color.white  -- Color por defecto
+function Utils:Tprint(chip, pos, font, spriteSheet, spriteX, spriteY, txt, textColor, maxWidth)
+    textColor = textColor or color.white
+    maxWidth = maxWidth or 28  -- Default 28 characters for full screen
     
-    -- Dibujar icono si existe
+    -- Draw icon if exists
     if spriteSheet then
         chip:DrawSprite(pos, spriteSheet, spriteX, spriteY, color.white, color.clear)
-        pos = pos + vec2(12, 0)  -- Desplazar posición del texto
+        pos = pos + vec2(12, 0)
     end
 
-    -- Nueva función de formateo que mantiene espacios
-    local function formatTextWithSpaces(text, limit)
-        local result = ""
-        local currentLineLength = 0
+    -- Smart line break function that respects whole words
+    local function formatTextWithWordWrap(text, maxCharsPerLine)
+        local lines = {}
+        local currentLine = ""
         
-        for i = 1, #text do
-            local char = text:sub(i, i)
+        -- Split by explicit line breaks first
+        for paragraph in text:gmatch("[^\n]+") do
+            local words = {}
+            for word in paragraph:gmatch("%S+") do
+                table.insert(words, word)
+            end
             
-            -- Manejar salto de línea explícito
-            if char == "\n" then
-                result = result .. char
-                currentLineLength = 0
-            else
-                -- Si superamos el límite, añadir salto de línea
-                if currentLineLength >= limit then
-                    result = result .. "\n" .. char
-                    currentLineLength = 1
+            for i, word in ipairs(words) do
+                local testLine = currentLine
+                if #currentLine > 0 then
+                    testLine = testLine .. " " .. word
                 else
-                    result = result .. char
-                    currentLineLength = currentLineLength + 1
+                    testLine = word
                 end
+                
+                -- Check if adding this word exceeds the limit
+                if #testLine > maxCharsPerLine then
+                    -- If current line has content, save it and start new line
+                    if #currentLine > 0 then
+                        table.insert(lines, currentLine)
+                        currentLine = word
+                    else
+                        -- Word itself is too long, force break it
+                        table.insert(lines, word)
+                        currentLine = ""
+                    end
+                else
+                    currentLine = testLine
+                end
+            end
+            
+            -- Save the last line of this paragraph
+            if #currentLine > 0 then
+                table.insert(lines, currentLine)
+                currentLine = ""
             end
         end
         
-        return result
+        return table.concat(lines, "\n")
     end
 
-    txt = formatTextWithSpaces(txt, 28)
+    txt = formatTextWithWordWrap(txt, maxWidth)
 
-    -- Dibujar texto
+    -- Draw text
     local line, charPos = 0, 0
     for i = 1, #txt do
         local char = txt:sub(i, i)
         if char == "\n" then 
-            line, charPos = line + 1, 0  -- Resetear a inicio de línea
+            line, charPos = line + 1, 0
         else
             chip:DrawSprite(
                 pos + vec2(4 * charPos, 7 * line), 
@@ -100,7 +119,6 @@ function Utils:Tprint(chip, pos, font, spriteSheet, spriteX, spriteY, txt, textC
         end
     end
 end
-
 
 function Utils:ListSize(list)
 
@@ -124,7 +142,6 @@ function Utils:AddLogEntry(log, spriteSheet, spriteX, spriteY, text)
   })
 end
 
-
 function Utils:PrintLogEntries(log, chip, pos, font, scrollOffset)
     chip:Clear(color.black)
     
@@ -137,7 +154,7 @@ function Utils:PrintLogEntries(log, chip, pos, font, scrollOffset)
         local logHeight = math.ceil(#entry.text / charLimit) * lineHeight
         currentY = currentY - logHeight
 
-        -- Imprimir solo si está dentro del área visible
+        -- Print solo si está dentro del área visible
         if currentY + logHeight > pos.Y and currentY < pos.Y + screenHeight then
             self:Tprint(chip, vec2(pos.X, currentY), font, entry.spriteSheet, entry.spriteX, entry.spriteY, entry.text)
         elseif currentY + logHeight <= pos.Y then
@@ -146,7 +163,6 @@ function Utils:PrintLogEntries(log, chip, pos, font, scrollOffset)
     end
 end
 
-
 function Utils:CalculateTotalLogHeight(log)
     local totalHeight = 0
     for _, entry in ipairs(log) do
@@ -154,7 +170,6 @@ function Utils:CalculateTotalLogHeight(log)
     end
     return totalHeight
 end
-
 
 ---------------------------------------------------------------------------
 -- items
@@ -182,18 +197,20 @@ function Utils:PrintPlayerConstants(player)
         self:Tprint(videoPrincipal, vec2(x, y), gameFontAlter1, nil, nil, nil, str)
     end
 
-    -- Imprimir cada estadística con su posición base
-    printAdjustedNumber(player.health, 12, 56)     -- Salud
-    printAdjustedNumber(player.mana, 38, 56)      -- Maná
-    printAdjustedNumber(player.hunger, 90, 56)    -- Hambre
-    printAdjustedNumber(player.sleepyness, 116, 56)-- Sueño
+    -- Print cada estadística con su posición base
+    printAdjustedNumber(player.health, 12, 56)     -- Health
+    printAdjustedNumber(player.mana, 38, 56)      -- Mana
+    printAdjustedNumber(player.hunger, 90, 56)    -- Hunger
+    printAdjustedNumber(player.sleepyness, 116, 56)-- Sleep
 end
-
 
 ---------------------------------------------------------------------------
 -- inventory print
 
 function Utils:PrintInventory(player, itemType, itemSubType, selectedIndex, confirmedIndex, isFiltered, equipSlot)
+    -- DEBUG
+    print("DEBUG PrintInventory: itemType=" .. tostring(itemType) .. ", equipSlot=" .. tostring(equipSlot) .. ", isFiltered=" .. tostring(isFiltered))
+    
     -- Configuración inicial de pantalla
     videoPrincipal:Clear(color.black)
     videoPrincipal:DrawSprite(vec2(0, 0), guiInventory, 0, 0, color.white, color.clear)
@@ -201,6 +218,8 @@ function Utils:PrintInventory(player, itemType, itemSubType, selectedIndex, conf
     -- Preparar lista de ítems con opción de desequipar si es necesario
     local items = {}
     local shouldShowUnequip = isFiltered and equipSlot and player.equipment[equipSlot]
+    
+    print("DEBUG shouldShowUnequip=" .. tostring(shouldShowUnequip))
     
     if shouldShowUnequip then
         table.insert(items, {
@@ -234,8 +253,11 @@ function Utils:PrintInventory(player, itemType, itemSubType, selectedIndex, conf
     -- Dibujar ítems filtrados
     local activeItem, visibleCount = nil, 0
     for i, item in ipairs(items) do
-        local showItem = not itemType or item.data.type == itemType or item.data.type == "unequip"
-        showItem = showItem and (not itemSubType or item.data.subType == itemSubType or item.data.type == "unequip")
+        -- Show UNEQUIP type only if equipSlot was provided
+        local allowUnequip = equipSlot ~= nil and item.data.type == "unequip"
+        
+        local showItem = not itemType or item.data.type == itemType or allowUnequip
+        showItem = showItem and (not itemSubType or item.data.subType == itemSubType or allowUnequip)
         
         if showItem then
             local row = math.floor(visibleCount / 5)
@@ -283,13 +305,11 @@ function Utils:PrintInventory(player, itemType, itemSubType, selectedIndex, conf
     end
 end
 
-
 function Utils:PrintInventoryItem(pos, itemData, quantity)
     videoPrincipal:DrawSprite(pos, itemSpr, itemData.spr[1], itemData.spr[2], color.white, color.clear)
     local quantityPos = pos + vec2(quantity < 10 and 6 or 2, 4)
     self:Tprint(videoPrincipal, quantityPos, gameFontAlter1, nil, nil, nil, tostring(quantity))
 end
-
 
 ---------------------------------------------------------------------------
 -- playersheet print
@@ -421,7 +441,6 @@ function Utils:PrintSubStats(player)
     ps(s.manaRegen,115,26) ps(s.hungerDecay,115,34) ps(s.sleepDecay,115,42)
 end
 
-
 ---------------------------------------------------------------------------
 -- options system
 
@@ -438,7 +457,6 @@ function Utils:ShowOptions(chip, options, selectedIndex)
         self:Tprint(chip, vec2(2, startY + (i-1)*8), gameFont, logIcons, iconX, iconY, option.text)
     end
 end
-
 
 function Utils:GetItemOptions(itemData)
     local options = {}
@@ -457,7 +475,6 @@ function Utils:GetItemOptions(itemData)
     
     return options
 end
-
 
 ---------------------------------------------------------------------------
 -- recipes system
@@ -613,12 +630,15 @@ end
 ---------------------------------------------------------------------------
 -- SKILL SYSTEM UI
 
-function Utils:PrintSkillTree(player, Skill, selectedSkillId, scrollOffset)
+function Utils:PrintSkillTree(player, selectedSkillId, scrollOffset, skipClear)
     local skillSpr = rom.User.SpriteSheets["skillSpr.png"]
     local guiSkillList = rom.User.SpriteSheets["guiSkillList.png"]
     local guiSelectors = rom.User.SpriteSheets["guiSelectors.png"]
     
-    videoPrincipal:Clear(color.black)
+    -- Only clear if not showing confirmation window
+    if not skipClear then
+        videoPrincipal:Clear(color.black)
+    end
     
     -- Pintar fondo del skill tree
     videoPrincipal:DrawSprite(vec2(0, 0), guiSkillList, 0, 0, color.white, color.clear)
@@ -641,7 +661,15 @@ function Utils:PrintSkillTree(player, Skill, selectedSkillId, scrollOffset)
     
     -- Pintar info de la skill seleccionada
     if selectedSkillId then
-        local skillData = Skill:GetSkillData(selectedSkillId)
+        -- Find skill data directly from BD.skills
+        local skillData = nil
+        for _, skill in ipairs(BD.skills) do
+            if skill.id == selectedSkillId then
+                skillData = skill
+                break
+            end
+        end
+        
         if skillData then
             self:DrawSkillInfo(skillData, player)
         end
@@ -661,7 +689,7 @@ function Utils:DrawSkillIcon(player, skillData, selectedSkillId, scrollOffset, g
     local iconX = 3 + (col * 12)
     local iconY = 3 + (row * 12)
     
-    -- Verificar si está aprendida
+    -- Check if already learned
     local isLearned = false
     for _, learnedId in ipairs(player.skills) do
         if learnedId == skillData.id then
@@ -670,7 +698,49 @@ function Utils:DrawSkillIcon(player, skillData, selectedSkillId, scrollOffset, g
         end
     end
     
-    -- Pintar selector de color si está aprendida
+    -- Check if can be learned (requirements check)
+    local canLearn = true
+    
+    if not isLearned then
+        -- Check skill points
+        if player.skillPoints < 1 then
+            canLearn = false
+        end
+        
+        -- Check required skill
+        if skillData.requiredSkill then
+            local hasRequiredSkill = false
+            for _, learnedId in ipairs(player.skills) do
+                if learnedId == skillData.requiredSkill then
+                    hasRequiredSkill = true
+                    break
+                end
+            end
+            if not hasRequiredSkill then
+                canLearn = false
+            end
+        end
+    end
+    
+    -- Determine icon color based on state
+    local iconColor
+    if isLearned then
+        iconColor = color.white  -- Learned: full color
+    elseif canLearn then
+        iconColor = color.white  -- Can learn: full color (colored border differentiates learned)
+    else
+        iconColor = color.gray  -- Cannot learn: gray (darker but still visible)
+    end
+    
+    -- Draw skill icon
+    videoPrincipal:DrawSprite(
+        vec2(iconX, iconY),
+        skillSpr,
+        skillData.spriteX, skillData.spriteY,
+        iconColor, color.clear
+    )
+    
+    -- Draw colored selector ONLY if learned
     if isLearned then
         local selectorCol = skillData.tree == "physical" and 1 or 3
         videoPrincipal:DrawSprite(
@@ -681,17 +751,7 @@ function Utils:DrawSkillIcon(player, skillData, selectedSkillId, scrollOffset, g
         )
     end
     
-    -- Pintar icono de skill solo si está aprendida
-    if isLearned then
-        videoPrincipal:DrawSprite(
-            vec2(iconX, iconY),
-            skillSpr,
-            skillData.spriteX, skillData.spriteY,
-            color.white, color.clear
-        )
-    end
-    
-    -- Pintar cursor si es la skill seleccionada
+    -- Draw cursor if this is the selected skill
     if selectedSkillId == skillData.id then
         videoPrincipal:DrawSprite(
             vec2(selectorX, selectorY),
@@ -705,27 +765,24 @@ end
 function Utils:DrawSkillInfo(skillData, player)
     local guiIcons = rom.User.SpriteSheets["guiIcons.png"]
     
-    -- Nombre (66, 8)
+    -- Name (66, 8)
     self:Tprint(videoPrincipal, vec2(66, 8), gameFontAlter1, nil, nil, nil, skillData.name)
     
-    -- Puntos disponibles (115, 1 para 1 dígito / 111, 1 para 2 dígitos)
+    -- Available skill points (114, 0 for 1 digit / 110, 0 for 2 digits)
     local pointsStr = tostring(player.skillPoints)
-    local pointsX = #pointsStr == 1 and 115 or 111
-    self:Tprint(videoPrincipal, vec2(pointsX, 1), gameFontAlter1, nil, nil, nil, "Pt")
-    self:Tprint(videoPrincipal, vec2(pointsX + 8, 1), gameFontAlter1, nil, nil, nil, pointsStr)
+    local pointsX = #pointsStr == 1 and 114 or 110
+    self:Tprint(videoPrincipal, vec2(pointsX, 0), gameFontAlter1, nil, nil, nil, pointsStr)
     
-    -- Descripción (66, 24)
-    self:Tprint(videoPrincipal, vec2(66, 24), gameFont, nil, nil, nil, "DESCRIPTION")
-    self:Tprint(videoPrincipal, vec2(66, 32), gameFont, nil, nil, nil, skillData.description)
+    -- Description (66, 24) - NO "DESCRIPTION" title, it's already in the UI base
+    -- maxWidth=15 chars (62 pixels / 4 pixels per char)
+    self:Tprint(videoPrincipal, vec2(66, 24), gameFont, nil, nil, nil, skillData.description, nil, 15)
     
-    -- Coste de maná (115, 17 para 1 dígito / 111, 17 para 2 dígitos)
+    -- Mana cost (114, 16 for 1 digit / 110, 16 for 2 digits)
     if skillData.type == "active" then
         local costStr = tostring(skillData.manaCost)
-        local costX = #costStr == 1 and 115 or 111
-        
-        -- Icono de maná (asumiendo guiIcons[1,0] es el icono de maná)
-        videoPrincipal:DrawSprite(vec2(costX + 8, 17), guiIcons, 1, 0, color.white, color.clear)
-        self:Tprint(videoPrincipal, vec2(costX, 17), gameFontAlter1, nil, nil, nil, costStr)
+        local costX = #costStr == 1 and 114 or 110
+        -- Only number, icon is already in UI base
+        self:Tprint(videoPrincipal, vec2(costX, 16), gameFontAlter1, nil, nil, nil, costStr)
     end
 end
 
@@ -807,6 +864,44 @@ function Utils:PrintDecisionOptions(options, selectedIndex)
         -- Draw icon + text (same as ShowOptions)
         self:Tprint(video3, vec2(2, startY + (i-1)*8), gameFont, logIcons, iconX, iconY, option.text)
     end
+end
+
+function Utils:PrintSkillConfirmation(videoChip, gameFont, guiExtraWindow, guiButtons)
+    -- Window position and size
+    -- Window: 16,16 to 111,47 (96x32)
+    local windowX = 16
+    local windowY = 16
+    
+    print("DEBUG: Drawing skill confirmation window")
+    print("DEBUG: guiExtraWindow = " .. tostring(guiExtraWindow))
+    print("DEBUG: guiButtons = " .. tostring(guiButtons))
+    
+    -- Draw confirmation window (sprite index 0,1 not 0,0)
+    videoChip:DrawSprite(vec2(windowX, windowY), guiExtraWindow, 0, 1, color.white, color.clear)
+    
+    -- Text: "Learn skill?" centered
+    -- Window width = 96 pixels, text "Learn skill?" = 12 chars * 4px = 48px
+    -- Center: (96 - 48) / 2 = 24 pixels from window left
+    local textX = windowX + 24
+    local textY = windowY + 6
+    self:Tprint(videoChip, vec2(textX, textY), gameFont, nil, nil, nil, "Learn skill?")
+    
+    -- Buttons centered on second row
+    -- Button Z (confirm) - index 4
+    -- Button X (cancel) - index 5
+    -- Each button is 12x12
+    -- Total width for 2 buttons with spacing: 12 + 4 + 12 = 28 pixels
+    -- Center: (96 - 28) / 2 = 34 pixels from window left
+    
+    local buttonY = windowY + 18
+    local buttonZX = windowX + 28
+    local buttonXX = windowX + 56
+    
+    -- Draw button Z (confirm)
+    videoChip:DrawSprite(vec2(buttonZX, buttonY), guiButtons, 4, 0, color.white, color.clear)
+    
+    -- Draw button X (cancel)
+    videoChip:DrawSprite(vec2(buttonXX, buttonY), guiButtons, 5, 0, color.white, color.clear)
 end
 
 ---------------------------------------------------------------------------
