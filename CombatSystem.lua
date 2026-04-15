@@ -126,19 +126,16 @@ CombatSystem.StatusEffects = {
 function CombatSystem:ApplyStatus(target, statusName, duration)
     -- Verificar que target existe
     if not target then 
-        print("ERROR: ApplyStatus called with nil target")
         return false 
     end
     
     local statusData = self.StatusEffects[statusName]
     if not statusData then 
-        print("ERROR: ApplyStatus - status " .. statusName .. " doesn't exist")
         return false 
     end
     
     -- Check immunity (solo si immunity existe y es una tabla)
     if target.immunity and type(target.immunity) == "table" and tableContains(target.immunity, statusName) then
-        print("DEBUG: ApplyStatus - " .. statusName .. " blocked by immunity")
         return false
     end
     
@@ -146,11 +143,9 @@ function CombatSystem:ApplyStatus(target, statusName, duration)
     if statusData.type == "buff" then
         target.buffs = target.buffs or {}
         target.buffs[statusName] = (target.buffs[statusName] or 0) + duration
-        print(string.format("DEBUG: Applied BUFF %s for %d turns (total: %d)", statusName, duration, target.buffs[statusName]))
     else  -- debuff
         target.debuffs = target.debuffs or {}
         target.debuffs[statusName] = (target.debuffs[statusName] or 0) + duration
-        print(string.format("DEBUG: Applied DEBUFF %s for %d turns (total: %d)", statusName, duration, target.debuffs[statusName]))
     end
     
     return true
@@ -253,17 +248,11 @@ function CombatSystem:ExecuteTurn(player, enemy, action, gameState, log, logIcon
         end
     end
     
-    print("DEBUG: CombatSystem - Before ApplyHungerSleepDecay")
-    
     -- Apply hunger/sleep decay
     player:ApplyHungerSleepDecay(log, logIcons, Utils)
     
-    print("DEBUG: CombatSystem - After ApplyHungerSleepDecay")
-    
     -- Reset player turn for next round
-    print("DEBUG: CombatSystem - Resetting playerTurn to true")
     gameState.playerTurn = true
-    print("DEBUG: CombatSystem - playerTurn = " .. tostring(gameState.playerTurn))
 end
 
 ---------------------------------------------------------------------------

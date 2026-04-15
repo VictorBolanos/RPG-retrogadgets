@@ -222,7 +222,7 @@ function Player:updateSubStats()
     local dex = self.stats.dexterity
     local int = self.stats.intelligence
     local vit = self.stats.vitality
---print("Sumando ", (1 * vit), " y ", self.equipmentStatBonuss.defense)
+
     -- Actualización completa de todos los subStats
     self.subStats = {
         attack = (1 * str) + (0.5 * agi) + self.equipmentStatBonuss.attack,
@@ -247,7 +247,6 @@ end
 function Player:equipItem(itemName, slot)
     local itemData = Utils:GetItemData(itemName)
     if not itemData then
-        print("Error: Item '"..itemName.."' does not exist.")
         return
     end
 
@@ -263,7 +262,6 @@ function Player:equipItem(itemName, slot)
     }
 
     if validSlots[slot] ~= itemData.type then
-        print("Error: Cannot equip '"..itemName.."' in '"..slot.."'.")
         return
     end
 
@@ -284,7 +282,6 @@ end
 function Player:unequipItem(slot)
     local itemName = self.equipment[slot]
     if not itemName then
-        print("Error: Nothing equipped in '"..slot.."'.")
         return
     end
 
@@ -370,12 +367,10 @@ function Player:addItemToInventory(itemName, quantity)
     local current = self.inventory[itemName] or 0
     
     if current + quantity > 99 then
-        print("Stack limit reached for "..itemName.." (99)")
         return false
     end
     
     if current == 0 and self:countInventoryItems() >= 24 then
-        print("Inventory full (24 slots max)")
         return false
     end
     
@@ -394,12 +389,10 @@ function Player:removeItemFromInventory(itemName, quantity)
     self.inventory = self.inventory or {}
     
     if not self.inventory[itemName] then
-        print("Objeto no encontrado: "..itemName)
         return false
     end
     
     if self.inventory[itemName] < quantity then
-        print("Cantidad insuficiente de "..itemName)
         return false
     end
     
@@ -501,7 +494,6 @@ function Player:discoverRecipes()
             end
 
             if hasAnyIngredient then
-                print("Receta desbloqueada:", recipe.name)
                 table.insert(self.recipes, recipe)
             end
         end

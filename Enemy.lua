@@ -17,7 +17,6 @@ function Enemy:new(enemyId)
     end
     
     if not template then
-        print("Error: Enemy ID "..enemyId.." doesn't exist")
         return nil
     end
     

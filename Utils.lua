@@ -208,8 +208,6 @@ end
 -- inventory print
 
 function Utils:PrintInventory(player, itemType, itemSubType, selectedIndex, confirmedIndex, isFiltered, equipSlot)
-    -- DEBUG
-    print("DEBUG PrintInventory: itemType=" .. tostring(itemType) .. ", equipSlot=" .. tostring(equipSlot) .. ", isFiltered=" .. tostring(isFiltered))
     
     -- Configuración inicial de pantalla
     videoPrincipal:Clear(color.black)
@@ -218,8 +216,6 @@ function Utils:PrintInventory(player, itemType, itemSubType, selectedIndex, conf
     -- Preparar lista de ítems con opción de desequipar si es necesario
     local items = {}
     local shouldShowUnequip = isFiltered and equipSlot and player.equipment[equipSlot]
-    
-    print("DEBUG shouldShowUnequip=" .. tostring(shouldShowUnequip))
     
     if shouldShowUnequip then
         table.insert(items, {
@@ -846,10 +842,6 @@ end
 function Utils:PrintDecisionOptions(options, selectedIndex)
     local video3 = gdt.VideoChip2
     
-    print("DEBUG: PrintDecisionOptions called")
-    print("DEBUG: options count = " .. #options)
-    print("DEBUG: selectedIndex = " .. selectedIndex)
-    
     video3:Clear(color.black)
     
     local startY = 2
@@ -858,8 +850,6 @@ function Utils:PrintDecisionOptions(options, selectedIndex)
         if i == selectedIndex then
             iconX, iconY = 5, 0  -- Icon selected
         end
-        
-        print("DEBUG: Drawing option " .. i .. ": " .. option.text .. " at Y=" .. (startY + (i-1)*8))
         
         -- Draw icon + text (same as ShowOptions)
         self:Tprint(video3, vec2(2, startY + (i-1)*8), gameFont, logIcons, iconX, iconY, option.text)
@@ -871,10 +861,6 @@ function Utils:PrintSkillConfirmation(videoChip, gameFont, guiExtraWindow, guiBu
     -- Window: 16,16 to 111,47 (96x32)
     local windowX = 16
     local windowY = 16
-    
-    print("DEBUG: Drawing skill confirmation window")
-    print("DEBUG: guiExtraWindow = " .. tostring(guiExtraWindow))
-    print("DEBUG: guiButtons = " .. tostring(guiButtons))
     
     -- Draw confirmation window (sprite index 0,1 not 0,0)
     videoChip:DrawSprite(vec2(windowX, windowY), guiExtraWindow, 0, 1, color.white, color.clear)
