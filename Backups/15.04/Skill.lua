@@ -170,15 +170,50 @@ function Skill:UseSkill(user, target, skillId, log, logIcons, Utils)
     
     Utils:AddLogEntry(log, logIcons, 1, 0, target.name.." takes "..totalDamage.." damage!")
     
-    -- Apply debuff if exists
+    -- Apply debuff if exists (using CombatSystem)
     if skillData.applyDebuff then
-        target.debuffs = target.debuffs or {}
+        local CombatSystem = require("CombatSystem.lua")
+        local duration = 3  -- Default duration
+        
+        -- Custom durations per debuff
         if skillData.applyDebuff == "bleeding" then
-            target.debuffs.bleeding = 2 -- 2 turns
-            Utils:AddLogEntry(log, logIcons, 0, 0, target.name.." is bleeding!")
+            duration = 3
         elseif skillData.applyDebuff == "stun" then
-            target.debuffs.stun = 1 -- 1 turn
-            Utils:AddLogEntry(log, logIcons, 0, 0, target.name.." is stunned!")
+            duration = 1
+        elseif skillData.applyDebuff == "poison" then
+            duration = 4
+        elseif skillData.applyDebuff == "burn" then
+            duration = 2
+        elseif skillData.applyDebuff == "freeze" then
+            duration = 1
+        elseif skillData.applyDebuff == "paralyze" then
+            duration = 2
+        elseif skillData.applyDebuff == "confusion" then
+            duration = 2
+        end
+        
+        local applied = CombatSystem:ApplyStatus(target, skillData.applyDebuff, duration)
+        
+        if applied then
+            local statusData = CombatSystem.StatusEffects[skillData.applyDebuff]
+            if statusData then
+                Utils:AddLogEntry(log, logIcons, 0, 0, target.name.." is "..statusData.name.."!")
+            end
+        else
+            -- Target is immune
+            Utils:AddLogEntry(log, logIcons, 0, 0, target.name.." is immune!")
+        end
+    end
+    
+    -- Apply buff if exists (for self-buffs)
+    if skillData.applyBuff then
+        local CombatSystem = require("CombatSystem.lua")
+        local duration = 3  -- Default duration
+        
+        CombatSystem:ApplyStatus(user, skillData.applyBuff, duration)
+        local statusData = CombatSystem.StatusEffects[skillData.applyBuff]
+        if statusData then
+            Utils:AddLogEntry(log, logIcons, 3, 0, user.name.." gains "..statusData.name.."!")
         end
     end
     

@@ -5,6 +5,7 @@ local Skill = require("Skill.lua")
 local Enemy = require("Enemy.lua")
 local Chapters = require("Chapters.lua")
 local CombatSystem = require("CombatSystem.lua")
+local BD = require("BD.lua")
 
 -- Instancias de clases
 Utils = Utils:new()
@@ -22,7 +23,7 @@ local skillLeds = {gdt.Led8, gdt.Led9}
 -- Input
 local ligthSwitch = gdt.Switch0
 local screenButtonSkills = {gdt.ScreenButton0, gdt.ScreenButton1}
-local buttonA, buttonS, buttonZ, buttonX = gdt.LedButton5, gdt.LedButton2, gdt.LedButton0, gdt.LedButton1
+local buttonA, buttonS, buttonD, buttonZ, buttonX = gdt.LedButton5, gdt.LedButton2, gdt.LedButton11, gdt.LedButton0, gdt.LedButton1
 local buttonLogUp, buttonLogDown = gdt.LedButton3, gdt.LedButton4
 local dPad = gdt.DPad0
 local buttonSelect, buttonStart = gdt.LedButton14, gdt.LedButton15
@@ -46,6 +47,8 @@ local guiSkillList = rom.User.SpriteSheets["guiSkillList.png"]
 local guiPlayerSheet = rom.User.SpriteSheets["guiPlayerSheet.png"]
 local guiPlayerConstants = rom.User.SpriteSheets["guiPlayerConstants.png"]
 local guiExtraStats = rom.User.SpriteSheets["guiExtraStats.png"]
+local guiExtraWindow = rom.User.SpriteSheets["guiExtraWindow.png"]
+local statusIcons = rom.User.SpriteSheets["statusIcons.png"]
 local bgsSpr = {rom.User.SpriteSheets["sewersBG.png"]}
 local debugSpr = rom.User.SpriteSheets["debugSpr.png"]
 
@@ -79,6 +82,13 @@ local isSkillTreeOpen = false
 local selectedSkillId = nil
 local skillTreeScrollOffset = 0
 local selectedDecisionIndex = 1
+local isSkillConfirmationOpen = false
+local skillToLearn = nil
+local skillConfirmationJustOpened = false  -- NEW: Flag to prevent same-frame confirmation
+local isEquipModeActive = false  -- NEW: Modo cambio de skill equipada
+local equipModeSkillId = nil  -- NEW: Skill a equipar
+local selectedEquipSlot = 1  -- NEW: Slot seleccionado en video4 (1 o 2)
+local equipModeJustActivated = false  -- NEW: Flag to prevent same-frame equip
 
 -- Inventory locals
 local isInventoryOpen, isPlayerSheetOpen = false, false
@@ -89,6 +99,7 @@ local isSelectingEquipment = false
 local inventoryFilterType = nil
 local inventoryFilterSubType = nil
 local isFilteredInventoryOpen = false
+local filteredInventoryFromCombat = false  -- NEW: Track if opened from combat
 local isEquipmentMode = false
 local showSubStatsSelector = false
 local isSubStatsOpen = false
@@ -119,16 +130,12 @@ end
 function Testing()
 	
 	-- 	Utils:AddLogEntry(log, logIcons, 2, 0, "You get conciusness inside a dark sewer. you must scape trought the ladder or explore another exit")
-	-- 
+
 	-- 	Utils:AddLogEntry(log, logIcons, 3, 0, "What do you want to do?")
 	-- 	
 	-- 	Utils:AddLogEntry(log, logIcons, 0, 0, "You noticed a suspicious shape far in the dark...")
 	-- 	
 	-- 	Utils:AddLogEntry(log, logIcons, 3, 0, "What do you want to do?")
-	
-	
-
-
 
 	--video1:DrawSprite(vec2(0,0), debugSpr, 0, 0, color.white, color.clear)
 	
@@ -138,8 +145,9 @@ function Testing()
 	
 	--video1:DrawSprite(vec2(0,0), guiPlayerSheet, 0, 0, color.white, color.clear)
 
-    --(chapter, subChapter, gold, name, level, exp, expToNextLevel, points, hunger, sleepyness, health, maxHealth, mana, maxMana, stats, equipment, inventory, skills, selectedSkills)
-    player = Player:new(0, 0, 0, "SirBolas", 1, 0, 10, 10, 50, 50, 10, 10, 10, 10, {1,1,1,1,1}, {}, {}, {}, {})
+    --(chapter, subChapter, gold, name, level, exp, expToNextLevel, points, skillPoints, hunger, sleepyness, health, maxHealth, mana, maxMana, stats, equipment, inventory, skills, selectedSkills)
+    -- stats: {str, agi, dex, int, vit}  vit=15
+    player = Player:new(0, 0, 0, "SirBolas", 1, 0, 10, 0, 5, 50, 50, 10, 10, 10, 10, {1,1,1,1,15}, {}, {}, {}, {})
 
     player:addItemToInventory("Knife", 1)
     player:addItemToInventory("Axe", 1)
@@ -169,10 +177,24 @@ function Testing()
     --player:addItemToInventory("Green herb", 1)
     --player:addItemToInventory("Yellow herb", 1)
 
+    -- AUTO-EQUIP ALL SLOTS
+    player:equipItem("Knife", "lHand")         -- Left hand weapon
+    player:equipItem("Axe", "rHand")           -- Right hand weapon
+    player:equipItem("Leather cap", "head")    -- Head armor
+    player:equipItem("Iron Chestplate", "body")     -- Body armor (Iron Chestplate)
+    player:equipItem("Leather boots", "feet")  -- Feet armor
+    player:equipItem("Emerald pendant", "accesory1")  -- Accessory 1
+    player:equipItem("Ruby necklance", "accesory2")   -- Accessory 2
+
+    -- TESTING: Apply status effects to player
+    local CombatSystem = require("CombatSystem.lua")
+    CombatSystem:ApplyStatus(player, "bleeding", 3)
+    CombatSystem:ApplyStatus(player, "poison", 4)
+    print("TESTING: Applied bleeding and poison to player")
+
     -- StartChapter0 is now called from Init(), not here
 
 end
-
 
 function TestingUpdate()
 	
@@ -201,7 +223,6 @@ function TestingUpdate()
 	end
 	
 end
-
 
 ---------------------------------------------------------------------------
 
@@ -235,13 +256,14 @@ function ToggleInventory()
     -- Don't allow opening inventory during combat (it opens via combat menu only)
     if gameState.inCombat then return end
     
+    -- Don't toggle inventory if filtered inventory is open (combat items menu)
+    if isFilteredInventoryOpen then return end
+    
     if buttonA.ButtonDown then
-        -- **Si el inventario filtrado estaba abierto, cerrarlo antes de abrir el normal**
-        if isFilteredInventoryOpen then
-            isFilteredInventoryOpen = false
-            inventoryFilterType, inventoryFilterSubType = nil, nil
-        end
-
+        -- Close other menus
+        isPlayerSheetOpen = false
+        isSkillTreeOpen = false
+        
         -- **Abrir o cerrar el inventario normal**
         isInventoryOpen = not isInventoryOpen
         showSubStatsSelector = false -- **Cerrar el selector de subestadísticas**
@@ -250,7 +272,6 @@ function ToggleInventory()
         if isInventoryOpen then
             selectedItemIndex = vec2(1, 1) -- **Siempre empezar en la primera posición**
             confirmedItemIndex = nil -- **Eliminar marcador de selección anterior**
-            isPlayerSheetOpen = false -- **Asegurar que se cierre el equipamiento**
             Utils:PrintInventory(player, nil, nil, selectedItemIndex, confirmedItemIndex)
         end
     end
@@ -259,13 +280,22 @@ end
 
 function TogglePlayerSheet()
     if buttonS.ButtonDown then
+        -- Don't toggle player sheet if filtered inventory is open
+        if isFilteredInventoryOpen then
+            return
+        end
+        
         if isSubStatsOpen then
             isSubStatsOpen = false
         end
+        
+        -- Close other menus
+        isInventoryOpen = false
+        isSkillTreeOpen = false
+        
         isPlayerSheetOpen = not isPlayerSheetOpen
         selectedStatIndex = nil
         if isPlayerSheetOpen then
-            isInventoryOpen = false
             selectedEquipmentIndex = "lHand"
             
             -- In combat, player sheet is READ-ONLY
@@ -436,13 +466,47 @@ function handleFilteredInventorySelection()
     local selectedItem = getSelectedFilteredItem(filteredItems)
     
     if selectedItem then
-        processEquipmentSelection(selectedItem)
+        if filteredInventoryFromCombat then
+            -- Combat: use consumable item
+            useCombatItem(selectedItem)
+        else
+            -- Player sheet: equip item
+            processEquipmentSelection(selectedItem)
+        end
+    end
+end
+
+function useCombatItem(item)
+    -- Use consumable in combat
+    if item.data.type == "consumable" then
+        print("DEBUG: Using item " .. item.name .. " in combat")
+        
+        -- Use the item (applies effects and removes from inventory)
+        local success = player:useItem(item.name)
+        
+        if not success then
+            print("ERROR: Failed to use item " .. item.name)
+            return
+        end
+        
+        -- Execute combat turn with item action
+        local action = {type = "item", itemName = item.name}
+        CombatSystem:ExecuteTurn(player, gameState.currentEnemy, action, gameState, log, logIcons, Utils)
+        
+        -- Close filtered inventory
+        isFilteredInventoryOpen = false
+        inventoryFilterType, inventoryFilterSubType = nil, nil
+        filteredInventoryFromCombat = false
+        gameState.combatMenuActive = false  -- Item turn ends, enemy attacks next
+        video3:Clear(color.black)
     end
 end
 
 function buildFilteredItemsList()
     local items = {}
-    if player.equipment[selectedEquipmentIndex] then
+    
+    -- Only add UNEQUIP option if NOT from combat
+    if not filteredInventoryFromCombat and player.equipment[selectedEquipmentIndex] then
         table.insert(items, {
             name = "UNEQUIP",
             data = {
@@ -456,10 +520,20 @@ function buildFilteredItemsList()
     
     for itemName, _ in pairs(player.inventory) do
         local itemData = Utils:GetItemData(itemName)
-        if itemData and itemData.type == inventoryFilterType and itemData.subType == inventoryFilterSubType then
-            table.insert(items, {name = itemName, data = itemData})
+        if itemData and itemData.type == inventoryFilterType then
+            -- If itemSubType filter is set, check it; otherwise accept all
+            if inventoryFilterSubType == nil or itemData.subType == inventoryFilterSubType then
+                table.insert(items, {name = itemName, data = itemData})
+            end
         end
     end
+    
+    -- Sort items by sprite position (same as PrintInventory)
+    table.sort(items, function(a, b)
+        return (a.data.type == "unequip" and true) or 
+               (b.data.type == "unequip" and false) or
+               (a.data.spr[2] * 10 + a.data.spr[1]) < (b.data.spr[2] * 10 + b.data.spr[1])
+    end)
     
     return items
 end
@@ -531,7 +605,15 @@ function HandleButtonX()
         elseif isFilteredInventoryOpen then
             isFilteredInventoryOpen = false
             inventoryFilterType, inventoryFilterSubType = nil, nil
-            isPlayerSheetOpen = true
+            
+            -- Only reopen player sheet if NOT from combat
+            if not filteredInventoryFromCombat then
+                isPlayerSheetOpen = true
+            else
+                -- From combat: reopen combat menu
+                gameState.combatMenuActive = true
+                filteredInventoryFromCombat = false  -- Reset flag
+            end
         elseif isInventoryOpen then
             confirmedItemIndex = nil
         end
@@ -546,6 +628,60 @@ end
 
 function eventChannel1(sender, event)
     if event.X == 0 and event.Y == 0 then return end  -- No hay movimiento
+
+    -- Equip mode navigation (LEFT/RIGHT only)
+    if isEquipModeActive then
+        if event.X > 0 then
+            -- Right: move to slot 2
+            selectedEquipSlot = 2
+        elseif event.X < 0 then
+            -- Left: move to slot 1
+            selectedEquipSlot = 1
+        end
+        return  -- Block all other navigation while in equip mode
+    end
+
+    -- Skill tree navigation (only if NOT in equip mode)
+    if isSkillTreeOpen and not isSkillConfirmationOpen then
+        if event.Y < 0 and selectedSkillId then
+            -- Down
+            local nextSkill = Skill:GetSkillData(selectedSkillId + 1)
+            if nextSkill then
+                selectedSkillId = selectedSkillId + 1
+                -- Scroll if necessary
+                local skillData = Skill:GetSkillData(selectedSkillId)
+                if skillData and skillData.gridRow - skillTreeScrollOffset > 4 then
+                    skillTreeScrollOffset = skillTreeScrollOffset + 1
+                end
+            end
+        elseif event.Y > 0 and selectedSkillId then
+            -- Up
+            if selectedSkillId > 1 then
+                selectedSkillId = selectedSkillId - 1
+                -- Scroll if necessary
+                local skillData = Skill:GetSkillData(selectedSkillId)
+                if skillData and skillData.gridRow - skillTreeScrollOffset < 0 then
+                    skillTreeScrollOffset = skillTreeScrollOffset - 1
+                end
+            end
+        end
+        
+        -- Horizontal navigation between trees
+        if event.X > 0 and selectedSkillId then
+            -- Switch to magic tree
+            local currentSkill = Skill:GetSkillData(selectedSkillId)
+            if currentSkill and currentSkill.tree == "physical" then
+                selectedSkillId = 4 -- First magic skill
+            end
+        elseif event.X < 0 and selectedSkillId then
+            -- Switch to physical tree
+            local currentSkill = Skill:GetSkillData(selectedSkillId)
+            if currentSkill and currentSkill.tree == "magic" then
+                selectedSkillId = 1 -- First physical skill
+            end
+        end
+        return
+    end
 
     if isRecipesMenuOpen then
         -- Obtener las recetas filtradas actuales
@@ -633,11 +769,19 @@ end
 -- Funciones auxiliares
 function countInventoryItems()
     if isFilteredInventoryOpen then
-        local count = player.equipment[selectedEquipmentIndex] and 1 or 0
+        -- Only count equipment slot if NOT consumables (i.e., not in combat)
+        local count = 0
+        if inventoryFilterType ~= "consumable" and player.equipment[selectedEquipmentIndex] then
+            count = 1
+        end
+        
         for itemName, _ in pairs(player.inventory) do
             local itemData = Utils:GetItemData(itemName)
-            if itemData and itemData.type == inventoryFilterType and itemData.subType == inventoryFilterSubType then
-                count = count + 1
+            if itemData and itemData.type == inventoryFilterType then
+                -- If itemSubType filter is set, check it; otherwise accept all
+                if inventoryFilterSubType == nil or itemData.subType == inventoryFilterSubType then
+                    count = count + 1
+                end
             end
         end
         return count
@@ -794,7 +938,6 @@ local function ResetSelection()
     end
 end
 
-
 local function GetAppropriateSlot(itemData)
     if not itemData then return "lHand" end  -- Seguridad
     
@@ -814,7 +957,6 @@ local function GetAppropriateSlot(itemData)
     end
     return "lHand" -- Slot por defecto
 end
-
 
 function HandleOptionSelection()
     if #currentOptions == 0 or not confirmedItemIndex then 
@@ -853,9 +995,8 @@ function HandleOptionSelection()
             isOptionMenuOpen = false
             inventoryFilterType = nil
             inventoryFilterSubType = nil
-            -- Execute turn
+            -- Execute turn (ExecuteTurn handles playerTurn internally)
             CombatSystem:ExecuteTurn(player, gameState.currentEnemy, action, gameState, log, logIcons, Utils)
-            gameState.playerTurn = false
         end
     elseif option.action == "drop" then
         player:removeItemFromInventory(item.name, item.quantity)
@@ -890,7 +1031,14 @@ end
 -- SKILL TREE SYSTEM
 
 function ToggleSkillTree()
-    if buttonZ.ButtonDown and not isInventoryOpen and not isPlayerSheetOpen and not gameState.inCombat and not gameState.waitingForDecision and not gameState.waitingForInput then
+    if buttonD.ButtonDown then
+        -- Don't toggle skill tree if filtered inventory is open (combat items menu)
+        if isFilteredInventoryOpen then return end
+        
+        -- Close other menus
+        isInventoryOpen = false
+        isPlayerSheetOpen = false
+        
         isSkillTreeOpen = not isSkillTreeOpen
         if isSkillTreeOpen then
             selectedSkillId = 1
@@ -899,60 +1047,158 @@ function ToggleSkillTree()
     end
 end
 
-function HandleSkillTreeNavigation()
+function HandleSkillTreeInput()
     if not isSkillTreeOpen then return end
     
-    if dPad.DPadEvent then
-        local event = dPad.DPadEvent
+    -- Don't handle input if confirmation window or equip mode is active
+    if isSkillConfirmationOpen or isEquipModeActive then return end
+    
+    -- Try to learn/equip skill with button Z
+    if buttonZ.ButtonDown and selectedSkillId then
+        print("DEBUG: ButtonZ pressed, selectedSkillId = " .. selectedSkillId)
         
-        -- Navegación vertical en el árbol
-        if event.Y < 0 and selectedSkillId then
-            -- Bajar
-            local nextSkill = Skill:GetSkillData(selectedSkillId + 1)
-            if nextSkill then
-                selectedSkillId = selectedSkillId + 1
-                -- Scroll si es necesario
-                local skillData = Skill:GetSkillData(selectedSkillId)
-                if skillData and skillData.gridRow - skillTreeScrollOffset > 4 then
-                    skillTreeScrollOffset = skillTreeScrollOffset + 1
-                end
-            end
-        elseif event.Y > 0 and selectedSkillId then
-            -- Subir
-            if selectedSkillId > 1 then
-                selectedSkillId = selectedSkillId - 1
-                -- Scroll si es necesario
-                local skillData = Skill:GetSkillData(selectedSkillId)
-                if skillData and skillData.gridRow - skillTreeScrollOffset < 0 then
-                    skillTreeScrollOffset = skillTreeScrollOffset - 1
-                end
+        local skillData = Skill:GetSkillData(selectedSkillId)
+        if not skillData then 
+            print("DEBUG: Skill data not found")
+            return 
+        end
+        
+        print("DEBUG: Skill data found: " .. skillData.name)
+        
+        -- Check if already learned
+        local isLearned = false
+        for _, learnedId in ipairs(player.skills) do
+            if learnedId == selectedSkillId then
+                isLearned = true
+                break
             end
         end
         
-        -- Navegación horizontal entre árboles
-        if event.X > 0 and selectedSkillId then
-            -- Cambiar a árbol mágico
-            local currentSkill = Skill:GetSkillData(selectedSkillId)
-            if currentSkill and currentSkill.tree == "physical" then
-                selectedSkillId = 4 -- Primera skill mágica
+        print("DEBUG: isLearned = " .. tostring(isLearned))
+        
+        if isLearned then
+            -- Skill already learned: ACTIVATE EQUIP MODE
+            print("DEBUG: Activating equip mode")
+            isEquipModeActive = true
+            equipModeSkillId = selectedSkillId
+            selectedEquipSlot = 1  -- Start at slot 1
+            equipModeJustActivated = true  -- Prevent equip in same frame
+        else
+            -- Skill not learned: show confirmation if requirements met
+            -- Check if player has skill points (SILENT - no log message)
+            if player.skillPoints < 1 then
+                print("DEBUG: Not enough skill points")
+                return  -- Do nothing, no warning
             end
-        elseif event.X < 0 and selectedSkillId then
-            -- Cambiar a árbol físico
-            local currentSkill = Skill:GetSkillData(selectedSkillId)
-            if currentSkill and currentSkill.tree == "magic" then
-                selectedSkillId = 1 -- Primera skill física
+            
+            print("DEBUG: Has skill points: " .. player.skillPoints)
+            
+            -- Check if required skill is learned (SILENT - no log message)
+            if skillData.requiredSkill then
+                local hasRequiredSkill = false
+                for _, learnedId in ipairs(player.skills) do
+                    if learnedId == skillData.requiredSkill then
+                        hasRequiredSkill = true
+                        break
+                    end
+                end
+                if not hasRequiredSkill then
+                    print("DEBUG: Required skill not learned")
+                    return  -- Do nothing, no warning
+                end
             end
+            
+            print("DEBUG: All checks passed, showing confirmation")
+            
+            -- All checks passed, show confirmation window
+            isSkillConfirmationOpen = true
+            skillToLearn = selectedSkillId
+            skillConfirmationJustOpened = true  -- Prevent confirmation in same frame
         end
     end
+end
+
+function HandleEquipModeInput()
+    if not isEquipModeActive then return end
     
-    -- Aprender skill con botón X
-    if buttonX.ButtonDown and selectedSkillId then
-        local success, message = Skill:LearnSkill(player, selectedSkillId)
-        if success then
-            Utils:AddLogEntry(log, logIcons, 3, 0, message)
+    -- Don't handle input if mode just activated (wait for next frame)
+    if equipModeJustActivated then
+        equipModeJustActivated = false
+        return
+    end
+    
+    -- Confirm equip with button Z
+    if buttonZ.ButtonDown then
+        -- Check if skill is already equipped in another slot
+        local otherSlot = selectedEquipSlot == 1 and 2 or 1  -- If slot 1, check slot 2, vice versa
+        
+        if player.selectedSkills[otherSlot] == equipModeSkillId then
+            -- Skill is in the other slot: SWAP them
+            local temp = player.selectedSkills[selectedEquipSlot]
+            player.selectedSkills[selectedEquipSlot] = equipModeSkillId
+            player.selectedSkills[otherSlot] = temp
+            
+            print("DEBUG: Swapped skills - Slot " .. selectedEquipSlot .. ": " .. equipModeSkillId .. ", Slot " .. otherSlot .. ": " .. tostring(temp))
         else
-            Utils:AddLogEntry(log, logIcons, 0, 0, message)
+            -- Skill is not equipped or is in the same slot: just equip normally
+            player.selectedSkills[selectedEquipSlot] = equipModeSkillId
+            
+            print("DEBUG: Equipped skill " .. equipModeSkillId .. " in slot " .. selectedEquipSlot)
         end
+        
+        -- Exit equip mode
+        isEquipModeActive = false
+        equipModeSkillId = nil
+    end
+    
+    -- Cancel with button X
+    if buttonX.ButtonDown then
+        print("DEBUG: Cancelled equip mode")
+        
+        -- Exit equip mode without equipping
+        isEquipModeActive = false
+        equipModeSkillId = nil
+    end
+end
+
+function HandleSkillConfirmation()
+    if not isSkillConfirmationOpen then return end
+    
+    -- Don't handle input if window just opened (wait for next frame)
+    if skillConfirmationJustOpened then
+        skillConfirmationJustOpened = false
+        return
+    end
+    
+    -- Confirm with button Z
+    if buttonZ.ButtonDown then
+        -- Add to learned skills (NO Skill:LearnSkill, do it directly)
+        table.insert(player.skills, skillToLearn)
+        
+        -- Auto-equip skill
+        if #player.selectedSkills == 0 then
+            -- No skills equipped, equip in slot 1
+            table.insert(player.selectedSkills, skillToLearn)
+        elseif #player.selectedSkills == 1 then
+            -- 1 skill equipped, equip in slot 2
+            table.insert(player.selectedSkills, skillToLearn)
+        end
+        -- If 2 skills already equipped, just learn (don't auto-equip)
+        
+        -- Decrease skill points
+        player.skillPoints = player.skillPoints - 1
+        
+        -- NO LOG MESSAGES AT ALL
+        
+        -- Close confirmation window
+        isSkillConfirmationOpen = false
+        skillToLearn = nil
+    end
+    
+    -- Cancel with button X
+    if buttonX.ButtonDown then
+        isSkillConfirmationOpen = false
+        skillToLearn = nil
     end
 end
 
@@ -991,10 +1237,9 @@ function HandleCombatInput()
         
         if option.action == "attack" then
             print("DEBUG: Executing attack")
-            -- Execute basic attack
+            -- Execute basic attack (ExecuteTurn handles playerTurn internally)
             local action = {type = "attack"}
             CombatSystem:ExecuteTurn(player, gameState.currentEnemy, action, gameState, log, logIcons, Utils)
-            gameState.playerTurn = false
             gameState.combatMenuActive = false
             video3:Clear(color.black)
             
@@ -1003,6 +1248,7 @@ function HandleCombatInput()
             -- Open consumables inventory
             gameState.combatMenuActive = false
             isFilteredInventoryOpen = true
+            filteredInventoryFromCombat = true  -- Mark as opened from combat
             inventoryFilterType = "consumable"
             inventoryFilterSubType = nil
             selectedItemIndex = vec2(1, 1)
@@ -1027,6 +1273,11 @@ end
 -- CHAPTER SYSTEM
 
 function HandleChapterProgression()
+    -- Don't handle if chapter is complete
+    if gameState.chapterComplete then
+        return
+    end
+    
     -- Don't handle chapter events if menus are open or interacting with UI
     if isInventoryOpen or isFilteredInventoryOpen or isSkillTreeOpen or isOptionMenuOpen or confirmedItemIndex or selectedStatIndex then
         return
@@ -1100,9 +1351,6 @@ function LoadGame()
 	return player
 end
 
-
---------------------------------------------------------------------------------------
---------------------------------------------------------------------------------------
 --------------------------------------------------------------------------------------
 --------------------------------------------------------------------------------------
 
@@ -1112,6 +1360,58 @@ Testing()
 -- pre-update
 Init()
 
+--------------------------------------------------------------------------------------
+-- DRAW EQUIPPED SKILLS ON VIDEO4
+
+function DrawEquippedSkills()
+    -- Always clear video4 first
+    video4:Clear(color.black)
+    
+    -- Draw equipped skills (slots 0 and 1)
+    for slotIndex = 1, 2 do
+        local skillId = player.selectedSkills[slotIndex]
+        
+        if skillId then
+            -- Find skill data from BD.skills
+            local skillData = nil
+            for _, skill in ipairs(BD.skills) do
+                if skill.id == skillId then
+                    skillData = skill
+                    break
+                end
+            end
+            
+            if skillData then
+                -- Calculate X position: slot 1 = 4, slot 2 = 30
+                local posX = slotIndex == 1 and 4 or 30
+                local posY = 4
+                
+                -- Draw skill icon
+                video4:DrawSprite(
+                    vec2(posX, posY),
+                    skillSpr,
+                    skillData.spriteX, skillData.spriteY,
+                    color.white, color.clear
+                )
+            end
+        end
+    end
+    
+    -- Draw selector if in equip mode
+    if isEquipModeActive then
+        -- Calculate selector position (icon position - 2, -2)
+        local posX = selectedEquipSlot == 1 and 2 or 28  -- 4-2=2, 30-2=28
+        local posY = 2  -- 4-2=2
+        
+        -- Draw white selector (same as skill tree cursor)
+        video4:DrawSprite(
+            vec2(posX, posY),
+            guiSelectors,
+            0, 3,
+            color.white, color.clear
+        )
+    end
+end
 
 -- update
 function update()
@@ -1133,15 +1433,26 @@ function update()
     
     -- Manejo de skill tree
     if isSkillTreeOpen then
-        HandleSkillTreeNavigation()
-        Utils:PrintSkillTree(player, Skill, selectedSkillId, skillTreeScrollOffset)
+        HandleSkillTreeInput()
+        HandleSkillConfirmation()
+        HandleEquipModeInput()
+        Utils:PrintSkillTree(player, selectedSkillId, skillTreeScrollOffset, isSkillConfirmationOpen)
+        
+        -- Draw confirmation window on top if open
+        if isSkillConfirmationOpen then
+            Utils:PrintSkillConfirmation(video1, gameFont, guiExtraWindow, guiButtons)
+        end
     end
     
     -- Manejo de combate (draws on top of background)
-    if gameState.inCombat then
+    if gameState.inCombat and not isSkillTreeOpen then
         HandleCombatInput()
         UpdateCombatAnimation()
-        Utils:PrintCombatScreen(player, gameState.currentEnemy, gameState.enemyAnimFrame, gameFont, gameFontAlter2, guiIcons, enemySpr)
+        
+        -- Only draw combat screen if enemy exists
+        if gameState.currentEnemy then
+            Utils:PrintCombatScreen(player, gameState.currentEnemy, gameState.enemyAnimFrame, gameFont, gameFontAlter1, guiIcons, enemySpr)
+        end
         
         -- Show combat menu if active
         if gameState.combatMenuActive then
@@ -1154,12 +1465,27 @@ function update()
         Utils:PrintDecisionOptions(gameState.currentDecision.options, selectedDecisionIndex)
     end
 
-    -- Renderizar la pantalla correcta según el estado
+    -- Draw player constants FIRST (so inventory/playersheet draw on top)
+    player:updateSubStats()
+    if not isSkillTreeOpen then
+        Utils:PrintPlayerConstants(player)
+    end
+
+    -- Renderizar la pantalla correcta según el estado (AFTER player constants)
     if isRecipesMenuOpen then
         Utils:PrintRecipes(player, nil, selectedItemForRecipes, selectedRecipeIndex, recipeScrollOffset)
     elseif isFilteredInventoryOpen then
-        Utils:PrintInventory(player, inventoryFilterType, inventoryFilterSubType, 
-                           selectedItemIndex, confirmedItemIndex, true, selectedEquipmentIndex)
+        -- Combat items: don't use filtered mode (no UNEQUIP option)
+        if filteredInventoryFromCombat then
+            print("DEBUG: Combat inventory - no filtered mode")
+            Utils:PrintInventory(player, inventoryFilterType, inventoryFilterSubType, 
+                               selectedItemIndex, confirmedItemIndex, false, nil)
+        else
+            -- Player sheet equipment: use filtered mode with UNEQUIP
+            print("DEBUG: Equipment inventory - filtered mode")
+            Utils:PrintInventory(player, inventoryFilterType, inventoryFilterSubType, 
+                               selectedItemIndex, confirmedItemIndex, true, selectedEquipmentIndex)
+        end
     elseif isInventoryOpen then
         Utils:PrintInventory(player, nil, nil, selectedItemIndex, confirmedItemIndex)
     elseif isSubStatsOpen then
@@ -1170,21 +1496,14 @@ function update()
 
     LogController()
     
-    player:updateSubStats()
-    if not isSkillTreeOpen then
-        Utils:PrintPlayerConstants(player)
-    end
+    -- Draw equipped skills on video4 (ALWAYS)
+    DrawEquippedSkills()
     
     TestingUpdate()
-		
-		
-
-
 
         --video1:DrawSprite(vec2(1,53), debugSpr,0,0, color.white, color.clear)
 		
 		--video1:DrawSprite(vec2(1,1), logIcons,5,0, color.white, color.clear)
-
 	
 		--Utils:Tprint(video1, vec2(11, 2), gameFont, nil, nil, nil, "    +     =")
 		
@@ -1192,11 +1511,9 @@ function update()
 		--video1:DrawSprite(vec2(16,8), guiIcons,7,0, color.white, color.clear)
 		--Utils:Tprint(video1, vec2(11, 8), gameFontAlter1Shadow, nil, nil, nil, "2")
 		
-		
 		--video1:DrawSprite(vec2(36,1), itemSpr,10,7, color.white, color.clear)
 		--video1:DrawSprite(vec2(40,8), guiIcons,8,0, color.white, color.clear)
 		
-		
 		--video1:DrawSprite(vec2(60,1), itemSpr,5,5, color.white, color.clear)
 
-end
+    end

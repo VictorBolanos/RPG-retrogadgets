@@ -55,7 +55,10 @@ function Enemy:new(enemyId)
         goldReward = template.goldReward,
         itemDrops = template.itemDrops or {},
         aiPattern = template.aiPattern,
+        immunity = template.immunity or {},        -- NEW: Status immunities
+        initialBuffs = template.initialBuffs or {}, -- NEW: Start with buffs
         debuffs = {},
+        buffs = {},
         stunned = false
     }
     
@@ -64,6 +67,11 @@ function Enemy:new(enemyId)
     
     -- Calculate substats
     obj:updateSubStats()
+    
+    -- Apply initial buffs
+    for _, buffName in ipairs(obj.initialBuffs) do
+        obj.buffs[buffName] = 999  -- Permanent buffs
+    end
     
     return obj
 end
@@ -216,18 +224,89 @@ end
 -- Update debuffs each turn
 
 function Enemy:UpdateDebuffs(log, logIcons, Utils)
+    if not self.debuffs then self.debuffs = {} return end
+    
     -- Bleeding
     if self.debuffs.bleeding and self.debuffs.bleeding > 0 then
-        local bleedDamage = math.floor(self.maxHealth * 0.05) -- 5% max HP
+        local bleedDamage = math.floor(self.maxHealth * 0.05)
         self.health = math.max(0, self.health - bleedDamage)
         Utils:AddLogEntry(log, logIcons, 0, 0, self.name.." loses "..bleedDamage.." from bleeding!")
         self.debuffs.bleeding = self.debuffs.bleeding - 1
     end
     
-    -- Stun
+    -- Poison
+    if self.debuffs.poison and self.debuffs.poison > 0 then
+        self.health = math.max(0, self.health - 8)
+        Utils:AddLogEntry(log, logIcons, 0, 0, self.name.." takes 8 poison damage!")
+        self.debuffs.poison = self.debuffs.poison - 1
+    end
+    
+    -- Burn
+    if self.debuffs.burn and self.debuffs.burn > 0 then
+        self.health = math.max(0, self.health - 12)
+        Utils:AddLogEntry(log, logIcons, 0, 0, self.name.." burns for 12 damage!")
+        self.debuffs.burn = self.debuffs.burn - 1
+    end
+    
+    -- Freeze (just decrement)
+    if self.debuffs.freeze and self.debuffs.freeze > 0 then
+        self.debuffs.freeze = self.debuffs.freeze - 1
+    end
+    
+    -- Paralyze (just decrement)
+    if self.debuffs.paralyze and self.debuffs.paralyze > 0 then
+        self.debuffs.paralyze = self.debuffs.paralyze - 1
+    end
+    
+    -- Confusion (just decrement)
+    if self.debuffs.confusion and self.debuffs.confusion > 0 then
+        self.debuffs.confusion = self.debuffs.confusion - 1
+    end
+    
+    -- Stun (legacy, now replaced by freeze/paralyze)
     if self.debuffs.stun and self.debuffs.stun > 0 then
         self.debuffs.stun = self.debuffs.stun - 1
     end
+end
+
+function Enemy:UpdateBuffs(log, logIcons, Utils)
+    if not self.buffs then self.buffs = {} return end
+    
+    -- Regen
+    if self.buffs.regen and self.buffs.regen > 0 then
+        local healAmount = 8
+        self.health = math.min(self.maxHealth, self.health + healAmount)
+        Utils:AddLogEntry(log, logIcons, 3, 0, self.name.." regenerates "..healAmount.." HP!")
+        self.buffs.regen = self.buffs.regen - 1
+    end
+    
+    -- Other buffs just decrement
+    for buffName, turnsLeft in pairs(self.buffs) do
+        if buffName ~= "regen" and turnsLeft > 0 then
+            self.buffs[buffName] = turnsLeft - 1
+        end
+    end
+end
+
+function Enemy:CanAct()
+    -- Freeze blocks action
+    if self.debuffs and self.debuffs.freeze and self.debuffs.freeze > 0 then
+        return false, "frozen"
+    end
+    
+    -- Paralyze has 50% chance to block
+    if self.debuffs and self.debuffs.paralyze and self.debuffs.paralyze > 0 then
+        if math.random(100) <= 50 then
+            return false, "paralyzed"
+        end
+    end
+    
+    -- Stun (legacy)
+    if self.debuffs and self.debuffs.stun and self.debuffs.stun > 0 then
+        return false, "stunned"
+    end
+    
+    return true, nil
 end
 
 ---------------------------------------------------------------------------

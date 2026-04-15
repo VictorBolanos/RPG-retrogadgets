@@ -48,6 +48,7 @@ local guiPlayerSheet = rom.User.SpriteSheets["guiPlayerSheet.png"]
 local guiPlayerConstants = rom.User.SpriteSheets["guiPlayerConstants.png"]
 local guiExtraStats = rom.User.SpriteSheets["guiExtraStats.png"]
 local guiExtraWindow = rom.User.SpriteSheets["guiExtraWindow.png"]
+local statusIcons = rom.User.SpriteSheets["statusIcons.png"]
 local bgsSpr = {rom.User.SpriteSheets["sewersBG.png"]}
 local debugSpr = rom.User.SpriteSheets["debugSpr.png"]
 
@@ -184,6 +185,12 @@ function Testing()
     player:equipItem("Leather boots", "feet")  -- Feet armor
     player:equipItem("Emerald pendant", "accesory1")  -- Accessory 1
     player:equipItem("Ruby necklance", "accesory2")   -- Accessory 2
+
+    -- TESTING: Apply status effects to player
+    local CombatSystem = require("CombatSystem.lua")
+    CombatSystem:ApplyStatus(player, "bleeding", 3)
+    CombatSystem:ApplyStatus(player, "poison", 4)
+    print("TESTING: Applied bleeding and poison to player")
 
     -- StartChapter0 is now called from Init(), not here
 
@@ -1458,7 +1465,13 @@ function update()
         Utils:PrintDecisionOptions(gameState.currentDecision.options, selectedDecisionIndex)
     end
 
-    -- Renderizar la pantalla correcta según el estado
+    -- Draw player constants FIRST (so inventory/playersheet draw on top)
+    player:updateSubStats()
+    if not isSkillTreeOpen then
+        Utils:PrintPlayerConstants(player)
+    end
+
+    -- Renderizar la pantalla correcta según el estado (AFTER player constants)
     if isRecipesMenuOpen then
         Utils:PrintRecipes(player, nil, selectedItemForRecipes, selectedRecipeIndex, recipeScrollOffset)
     elseif isFilteredInventoryOpen then
@@ -1482,11 +1495,6 @@ function update()
     end
 
     LogController()
-    
-    player:updateSubStats()
-    if not isSkillTreeOpen then
-        Utils:PrintPlayerConstants(player)
-    end
     
     -- Draw equipped skills on video4 (ALWAYS)
     DrawEquippedSkills()

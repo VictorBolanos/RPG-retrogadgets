@@ -186,8 +186,13 @@ end
 function Chapters:ExecuteEvent(eventId, player, gameState, log, logIcons, Utils)
     local event = self:GetEvent(player.chapter, eventId)
     if not event then
-        print("Error: Event "..eventId.." doesn't exist in chapter "..player.chapter)
         return
+    end
+    
+    -- Update player status effects each turn (outside combat)
+    if not gameState.inCombat then
+        player:UpdateBuffs(log, logIcons, Utils)
+        player:UpdateDebuffs(log, logIcons, Utils)
     end
     
     if event.type == "dialogue" then
@@ -219,18 +224,12 @@ end
 function Chapters:HandleDecision(event, player, gameState, log, logIcons, Utils)
     Utils:AddLogEntry(log, logIcons, 3, 0, event.question)
     
-    print("DEBUG: HandleDecision called")
-    print("DEBUG: event.question = " .. event.question)
-    print("DEBUG: options count = " .. #event.options)
-    
     -- Clear any previous state
     gameState.waitingForInput = false
     gameState.nextEvent = nil
     
     gameState.currentDecision = event
     gameState.waitingForDecision = true
-    
-    print("DEBUG: gameState.waitingForDecision = " .. tostring(gameState.waitingForDecision))
     
     return {type = "decision", options = event.options}
 end

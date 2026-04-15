@@ -9,7 +9,7 @@ local BD = require("BD.lua")
 
 local Player = {}
 
-function Player:new(chapter, subChapter, gold, name, level, exp, expToNextLevel, points, hunger, sleepyness, health, maxHealth, mana, maxMana, baseStats, equipment, inventory, skills, selectedSkills)
+function Player:new(chapter, subChapter, gold, name, level, exp, expToNextLevel, points, skillPoints, hunger, sleepyness, health, maxHealth, mana, maxMana, baseStats, equipment, inventory, skills, selectedSkills)
     local obj = {
         chapter = chapter,
         subChapter = subChapter,
@@ -21,7 +21,7 @@ function Player:new(chapter, subChapter, gold, name, level, exp, expToNextLevel,
         exp = exp or 0,
         expToNextLevel = expToNextLevel or CalculateExpToNextLevel(level or 1),
         points = points or 0,
-        skillPoints = 0, -- Puntos para aprender skills
+        skillPoints = skillPoints or 0,
 
         hunger = hunger,
         sleepyness = sleepyness,
@@ -100,7 +100,12 @@ function Player:new(chapter, subChapter, gold, name, level, exp, expToNextLevel,
         skills = skills or {},
         selectedSkills = selectedSkills or {},
 
-        recipes = {}
+        recipes = {},
+        
+        -- Status effects
+        immunity = {},      -- Player never has immunities by default
+        buffs = {},         -- Active buffs
+        debuffs = {}        -- Active debuffs
     }
     setmetatable(obj, self)
     self.__index = self
@@ -185,7 +190,6 @@ function Player:plusStat(stat, value)
     self.stats[stat] = self.baseStats[stat]
 end
 
-
 function Player:minusStat(stat, value)
     if (self.baseStats[stat] - value < 0) then
         self.baseStats[stat] = 0
@@ -195,7 +199,6 @@ function Player:minusStat(stat, value)
     self.stats[stat] = self.baseStats[stat]
 end
 
-
 function Player:plusPoints(points)
     if (self.points + points > 100) then
         self.points = 100
@@ -204,7 +207,6 @@ function Player:plusPoints(points)
     end
 end
 
-
 function Player:minusPoints(points)
     if (self.points - points < 0) then
         self.points = 0
@@ -212,7 +214,6 @@ function Player:minusPoints(points)
         self.points = self.points - points
     end
 end
-
 
 function Player:updateSubStats()
     -- Referencia directa a los stats base para mejor legibilidad
@@ -246,7 +247,7 @@ end
 function Player:equipItem(itemName, slot)
     local itemData = Utils:GetItemData(itemName)
     if not itemData then
-        print("Error: El ítem '"..itemName.."' no existe.")
+        print("Error: Item '"..itemName.."' does not exist.")
         return
     end
 
@@ -262,7 +263,7 @@ function Player:equipItem(itemName, slot)
     }
 
     if validSlots[slot] ~= itemData.type then
-        print("Error: No puedes equipar '"..itemName.."' en '"..slot.."'.")
+        print("Error: Cannot equip '"..itemName.."' in '"..slot.."'.")
         return
     end
 
@@ -280,11 +281,10 @@ function Player:equipItem(itemName, slot)
     self:removeItemFromInventory(itemName, 1)
 end
 
-
 function Player:unequipItem(slot)
     local itemName = self.equipment[slot]
     if not itemName then
-        print("Error: No hay nada equipado en '"..slot.."'.")
+        print("Error: Nothing equipped in '"..slot.."'.")
         return
     end
 
@@ -362,8 +362,6 @@ function Player:processEquipEffects(itemData, operation)
     self:updateSubStats()
 end
 
-
-
 ---------------------------------------------------------------------------
 -- inventory
 
@@ -372,12 +370,12 @@ function Player:addItemToInventory(itemName, quantity)
     local current = self.inventory[itemName] or 0
     
     if current + quantity > 99 then
-        print("Límite de stack alcanzado para "..itemName.." (99)")
+        print("Stack limit reached for "..itemName.." (99)")
         return false
     end
     
     if current == 0 and self:countInventoryItems() >= 24 then
-        print("Inventario lleno (24 slots máx.)")
+        print("Inventory full (24 slots max)")
         return false
     end
     
@@ -410,27 +408,60 @@ function Player:removeItemFromInventory(itemName, quantity)
     return true
 end
 
-
 function Player:useItem(itemName)
     local itemData = Utils:GetItemData(itemName)
-    if not itemData or itemData.type ~= "consumable" then return false end
+    if not itemData or itemData.type ~= "consumable" then 
+        return false 
+    end
     
     -- Procesar efectos
     for _, effect in ipairs(itemData.effectTags) do
+        -- HP
         local value = effect:match("(%d+) HP")
         if value then
             self:plusHealth(tonumber(value))
         end
         
+        -- MANA
         value = effect:match("(%d+) MANA")
         if value then
             self:plusMana(tonumber(value))
         end
         
-        -- Puedes añadir más efectos aquí
+        -- HUNGER (HUNG) - decrease hunger (add satiety)
+        value = effect:match("(%d+) HUNG")
+        if value then
+            self.hunger = math.min(100, self.hunger + tonumber(value))
+        end
+        
+        -- SLEEPYNESS (SLEEP) - decrease sleepyness (add rest)
+        value = effect:match("(%d+) SLEEP")
+        if value then
+            self.sleepyness = math.min(100, self.sleepyness + tonumber(value))
+        end
+        
+        -- CLEANSE specific debuff - "CLEANSE poison", "CLEANSE burn"
+        local debuffName = effect:match("CLEANSE (%w+)")
+        if debuffName then
+            if self.debuffs and self.debuffs[debuffName] then
+                self.debuffs[debuffName] = nil
+            end
+        end
+        
+        -- CLEANSE ALL - "CLEANSE ALL"
+        if effect == "CLEANSE ALL" then
+            self.debuffs = {}
+        end
+        
+        -- APPLY BUFF - "APPLY regen 4", "APPLY strength 3"
+        local buffName, duration = effect:match("APPLY (%w+) (%d+)")
+        if buffName and duration then
+            self.buffs = self.buffs or {}
+            self.buffs[buffName] = (self.buffs[buffName] or 0) + tonumber(duration)
+        end
     end
     
-    -- Eliminar un ítem del inventario
+    -- Remove one item from inventory
     return self:removeItemFromInventory(itemName, 1)
 end
 
@@ -477,7 +508,6 @@ function Player:discoverRecipes()
     end
 end
 
-
 -- Método para verificar ingredientes
 function Player:hasIngredients(recipe)
     for _, ingredient in ipairs(recipe.ingredients) do
@@ -516,9 +546,9 @@ function Player:executeRecipe(recipe)
                 quantity = tonumber(quantity)
                 self:addItemToInventory(itemName, quantity)
             end
-            return false, "No hay espacio en el inventario"
+            return false, "Not enough inventory space"
         end
-        return true, "¡Receta completada!"
+        return true, "Recipe completed!"
     end
     
     -- Si es un item nuevo, verificamos si hay espacio en el inventario
@@ -529,7 +559,7 @@ function Player:executeRecipe(recipe)
             quantity = tonumber(quantity)
             self:addItemToInventory(itemName, quantity)
         end
-        return false, "Inventario lleno (24 slots máx.)"
+        return false, "Inventory full (24 slots max)"
     end
     
     -- Si hay espacio, procedemos a añadir el item nuevo
@@ -541,7 +571,7 @@ function Player:executeRecipe(recipe)
             quantity = tonumber(quantity)
             self:addItemToInventory(itemName, quantity)
         end
-        return false, "Error: Item resultante no encontrado"
+        return false, "Error: Result item not found"
     end
     
     -- Encontrar el sprite más alto usado en el inventario
@@ -578,10 +608,86 @@ function Player:executeRecipe(recipe)
             quantity = tonumber(quantity)
             self:addItemToInventory(itemName, quantity)
         end
-        return false, "Error al añadir el item"
+        return false, "Error adding item"
     end
     
-    return true, "¡Receta completada!"
+    return true, "Recipe completed!"
+end
+
+---------------------------------------------------------------------------
+-- STATUS EFFECTS UPDATE
+
+function Player:UpdateBuffs(log, logIcons, Utils)
+    if not self.buffs then self.buffs = {} return end
+    
+    -- Regen
+    if self.buffs.regen and self.buffs.regen > 0 then
+        self:plusHealth(8)
+        Utils:AddLogEntry(log, logIcons, 3, 0, "Regen heals 8 HP!")
+        self.buffs.regen = self.buffs.regen - 1
+    end
+    
+    -- Other buffs just decrement (effects applied in stat calculation)
+    for buffName, turnsLeft in pairs(self.buffs) do
+        if buffName ~= "regen" and turnsLeft > 0 then
+            self.buffs[buffName] = turnsLeft - 1
+        end
+    end
+end
+
+function Player:UpdateDebuffs(log, logIcons, Utils)
+    if not self.debuffs then self.debuffs = {} return end
+    
+    -- Bleeding
+    if self.debuffs.bleeding and self.debuffs.bleeding > 0 then
+        local bleedDamage = math.floor(self.maxHealth * 0.05)
+        self:minusHealth(bleedDamage)
+        Utils:AddLogEntry(log, logIcons, 0, 0, "You lose "..bleedDamage.." HP from bleeding!")
+        self.debuffs.bleeding = self.debuffs.bleeding - 1
+    end
+    
+    -- Poison
+    if self.debuffs.poison and self.debuffs.poison > 0 then
+        self:minusHealth(8)
+        Utils:AddLogEntry(log, logIcons, 0, 0, "Poison deals 8 damage!")
+        self.debuffs.poison = self.debuffs.poison - 1
+    end
+    
+    -- Burn
+    if self.debuffs.burn and self.debuffs.burn > 0 then
+        self:minusHealth(12)
+        Utils:AddLogEntry(log, logIcons, 0, 0, "Burn deals 12 damage!")
+        self.debuffs.burn = self.debuffs.burn - 1
+    end
+    
+    -- Freeze (just decrement, effect applied in CanAct)
+    if self.debuffs.freeze and self.debuffs.freeze > 0 then
+        self.debuffs.freeze = self.debuffs.freeze - 1
+    end
+    
+    -- Paralyze (just decrement, effect applied in CanAct)
+    if self.debuffs.paralyze and self.debuffs.paralyze > 0 then
+        self.debuffs.paralyze = self.debuffs.paralyze - 1
+    end
+    
+    -- Confusion (just decrement, effect applied in action execution)
+    if self.debuffs.confusion and self.debuffs.confusion > 0 then
+        self.debuffs.confusion = self.debuffs.confusion - 1
+    end
+end
+
+function Player:CanAct()
+    -- Freeze blocks action completely
+    if self.debuffs and self.debuffs.freeze and self.debuffs.freeze > 0 then
+        return false
+    end
+    
+    -- Paralyze has 50% chance to block
+    if self.debuffs and self.debuffs.paralyze and self.debuffs.paralyze > 0 then
+        return math.random(100) > 50
+    end
+    
+    return true
 end
 
 ---------------------------------------------------------------------------

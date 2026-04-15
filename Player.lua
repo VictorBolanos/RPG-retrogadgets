@@ -100,7 +100,12 @@ function Player:new(chapter, subChapter, gold, name, level, exp, expToNextLevel,
         skills = skills or {},
         selectedSkills = selectedSkills or {},
 
-        recipes = {}
+        recipes = {},
+        
+        -- Status effects
+        immunity = {},      -- Player never has immunities by default
+        buffs = {},         -- Active buffs
+        debuffs = {}        -- Active debuffs
     }
     setmetatable(obj, self)
     self.__index = self
@@ -111,13 +116,11 @@ end
 -- health
 
 function Player:plusHealth(health)
-    print("DEBUG plusHealth: current=" .. self.health .. ", adding=" .. health .. ", maxHealth=" .. self.maxHealth)
     if (self.health + health > self.maxHealth) then
         self.health = self.maxHealth
     else
         self.health = self.health + health
     end
-    print("DEBUG plusHealth: new health=" .. self.health)
 end
 
 function Player:minusHealth(health)
@@ -408,41 +411,53 @@ end
 function Player:useItem(itemName)
     local itemData = Utils:GetItemData(itemName)
     if not itemData or itemData.type ~= "consumable" then 
-        print("ERROR: Item not found or not consumable: " .. tostring(itemName))
         return false 
     end
-    
-    print("DEBUG: Using item " .. itemName)
-    print("DEBUG: effectTags = " .. table.concat(itemData.effectTags, ", "))
     
     -- Procesar efectos
     for _, effect in ipairs(itemData.effectTags) do
         -- HP
         local value = effect:match("(%d+) HP")
         if value then
-            print("DEBUG: Healing " .. value .. " HP")
             self:plusHealth(tonumber(value))
         end
         
         -- MANA
         value = effect:match("(%d+) MANA")
         if value then
-            print("DEBUG: Restoring " .. value .. " MANA")
             self:plusMana(tonumber(value))
         end
         
         -- HUNGER (HUNG) - decrease hunger (add satiety)
         value = effect:match("(%d+) HUNG")
         if value then
-            print("DEBUG: Adding " .. value .. " hunger (satiety)")
             self.hunger = math.min(100, self.hunger + tonumber(value))
         end
         
         -- SLEEPYNESS (SLEEP) - decrease sleepyness (add rest)
         value = effect:match("(%d+) SLEEP")
         if value then
-            print("DEBUG: Adding " .. value .. " sleep (rest)")
             self.sleepyness = math.min(100, self.sleepyness + tonumber(value))
+        end
+        
+        -- CLEANSE specific debuff - "CLEANSE poison", "CLEANSE burn"
+        local debuffName = effect:match("CLEANSE (%w+)")
+        if debuffName then
+            if self.debuffs and self.debuffs[debuffName] then
+                self.debuffs[debuffName] = nil
+            end
+        end
+        
+        -- CLEANSE ALL - "CLEANSE ALL"
+        if effect == "CLEANSE ALL" then
+            self.debuffs = {}
+        end
+        
+        -- APPLY BUFF - "APPLY regen 4", "APPLY strength 3"
+        local buffName, duration = effect:match("APPLY (%w+) (%d+)")
+        if buffName and duration then
+            self.buffs = self.buffs or {}
+            self.buffs[buffName] = (self.buffs[buffName] or 0) + tonumber(duration)
         end
     end
     
@@ -597,6 +612,82 @@ function Player:executeRecipe(recipe)
     end
     
     return true, "Recipe completed!"
+end
+
+---------------------------------------------------------------------------
+-- STATUS EFFECTS UPDATE
+
+function Player:UpdateBuffs(log, logIcons, Utils)
+    if not self.buffs then self.buffs = {} return end
+    
+    -- Regen
+    if self.buffs.regen and self.buffs.regen > 0 then
+        self:plusHealth(8)
+        Utils:AddLogEntry(log, logIcons, 3, 0, "Regen heals 8 HP!")
+        self.buffs.regen = self.buffs.regen - 1
+    end
+    
+    -- Other buffs just decrement (effects applied in stat calculation)
+    for buffName, turnsLeft in pairs(self.buffs) do
+        if buffName ~= "regen" and turnsLeft > 0 then
+            self.buffs[buffName] = turnsLeft - 1
+        end
+    end
+end
+
+function Player:UpdateDebuffs(log, logIcons, Utils)
+    if not self.debuffs then self.debuffs = {} return end
+    
+    -- Bleeding
+    if self.debuffs.bleeding and self.debuffs.bleeding > 0 then
+        local bleedDamage = math.floor(self.maxHealth * 0.05)
+        self:minusHealth(bleedDamage)
+        Utils:AddLogEntry(log, logIcons, 0, 0, "You lose "..bleedDamage.." HP from bleeding!")
+        self.debuffs.bleeding = self.debuffs.bleeding - 1
+    end
+    
+    -- Poison
+    if self.debuffs.poison and self.debuffs.poison > 0 then
+        self:minusHealth(8)
+        Utils:AddLogEntry(log, logIcons, 0, 0, "Poison deals 8 damage!")
+        self.debuffs.poison = self.debuffs.poison - 1
+    end
+    
+    -- Burn
+    if self.debuffs.burn and self.debuffs.burn > 0 then
+        self:minusHealth(12)
+        Utils:AddLogEntry(log, logIcons, 0, 0, "Burn deals 12 damage!")
+        self.debuffs.burn = self.debuffs.burn - 1
+    end
+    
+    -- Freeze (just decrement, effect applied in CanAct)
+    if self.debuffs.freeze and self.debuffs.freeze > 0 then
+        self.debuffs.freeze = self.debuffs.freeze - 1
+    end
+    
+    -- Paralyze (just decrement, effect applied in CanAct)
+    if self.debuffs.paralyze and self.debuffs.paralyze > 0 then
+        self.debuffs.paralyze = self.debuffs.paralyze - 1
+    end
+    
+    -- Confusion (just decrement, effect applied in action execution)
+    if self.debuffs.confusion and self.debuffs.confusion > 0 then
+        self.debuffs.confusion = self.debuffs.confusion - 1
+    end
+end
+
+function Player:CanAct()
+    -- Freeze blocks action completely
+    if self.debuffs and self.debuffs.freeze and self.debuffs.freeze > 0 then
+        return false
+    end
+    
+    -- Paralyze has 50% chance to block
+    if self.debuffs and self.debuffs.paralyze and self.debuffs.paralyze > 0 then
+        return math.random(100) > 50
+    end
+    
+    return true
 end
 
 ---------------------------------------------------------------------------
