@@ -28,7 +28,9 @@ local buttonLogUp, buttonLogDown = gdt.LedButton3, gdt.LedButton4
 local dPad = gdt.DPad0
 local buttonSelect, buttonStart = gdt.LedButton14, gdt.LedButton15
 
-local buttonU, buttonI, buttonO, buttonP = gdt.LedButton7, gdt.LedButton8, gdt.LedButton9, gdt.LedButton10
+-- Testing Keypads
+local keypad0 = gdt.Keypad0
+local keypad1 = gdt.Keypad1
 
 -- Sprites
 local gameFont = rom.User.SpriteSheets["gameFont.png"]
@@ -186,42 +188,122 @@ function Testing()
     player:equipItem("Emerald pendant", "accesory1")  -- Accessory 1
     player:equipItem("Ruby necklance", "accesory2")   -- Accessory 2
 
-    -- TESTING: Apply status effects to player
-    local CombatSystem = require("CombatSystem.lua")
-    CombatSystem:ApplyStatus(player, "bleeding", 3)
-    CombatSystem:ApplyStatus(player, "poison", 4)
-    print("TESTING: Applied bleeding and poison to player")
-
     -- StartChapter0 is now called from Init(), not here
 
 end
 
 function TestingUpdate()
 	
-	if buttonU.ButtonDown then
-		player:addExp(250)
-		
+	-- KEYPAD 0: BUFFS - Check each button using ButtonsDown[X][Y]
+	if keypad0.ButtonsDown[1][1] then -- Regen
+		if player.buffs.regen and player.buffs.regen > 0 then
+			CombatSystem:RemoveStatus(player, "regen")
+		else
+			CombatSystem:ApplyStatus(player, "regen", 4)
+		end
 	end
 	
-	if buttonI.ButtonDown then
-		player:minusHealth(1)
-		
+	if keypad0.ButtonsDown[2][1] then -- Shield
+		if player.buffs.shield and player.buffs.shield > 0 then
+			CombatSystem:RemoveStatus(player, "shield")
+		else
+			CombatSystem:ApplyStatus(player, "shield", 2)
+		end
 	end
 	
-	if buttonO.ButtonDown then
-		player:plusHealth(1)
-		
+	if keypad0.ButtonsDown[3][1] then -- Strength
+		if player.buffs.strength and player.buffs.strength > 0 then
+			CombatSystem:RemoveStatus(player, "strength")
+		else
+			CombatSystem:ApplyStatus(player, "strength", 3)
+		end
 	end
 	
-	if buttonP.ButtonDown then
-        print("Player recipes:")
-		for recipe in player.recipes do
-            print(recipe)
-        end
-		
-		
+	if keypad0.ButtonsDown[1][2] then -- Haste
+		if player.buffs.haste and player.buffs.haste > 0 then
+			CombatSystem:RemoveStatus(player, "haste")
+		else
+			CombatSystem:ApplyStatus(player, "haste", 3)
+		end
 	end
 	
+	if keypad0.ButtonsDown[2][2] then -- Focus
+		if player.buffs.focus and player.buffs.focus > 0 then
+			CombatSystem:RemoveStatus(player, "focus")
+		else
+			CombatSystem:ApplyStatus(player, "focus", 3)
+		end
+	end
+	
+	if keypad0.ButtonsDown[3][2] then -- Berserk
+		if player.buffs.berserk and player.buffs.berserk > 0 then
+			CombatSystem:RemoveStatus(player, "berserk")
+		else
+			CombatSystem:ApplyStatus(player, "berserk", 2)
+		end
+	end
+	
+	-- KEYPAD 1: DEBUFFS - Check each button using ButtonsDown[X][Y]
+	if keypad1.ButtonsDown[1][1] then -- Bleeding
+		if player.debuffs.bleeding and player.debuffs.bleeding > 0 then
+			CombatSystem:RemoveStatus(player, "bleeding")
+		else
+			CombatSystem:ApplyStatus(player, "bleeding", 3)
+		end
+	end
+	
+	if keypad1.ButtonsDown[2][1] then -- Poison
+		if player.debuffs.poison and player.debuffs.poison > 0 then
+			CombatSystem:RemoveStatus(player, "poison")
+		else
+			CombatSystem:ApplyStatus(player, "poison", 4)
+		end
+	end
+	
+	if keypad1.ButtonsDown[3][1] then -- Burn
+		if player.debuffs.burn and player.debuffs.burn > 0 then
+			CombatSystem:RemoveStatus(player, "burn")
+		else
+			CombatSystem:ApplyStatus(player, "burn", 2)
+		end
+	end
+	
+	if keypad1.ButtonsDown[1][2] then -- Freeze
+		if player.debuffs.freeze and player.debuffs.freeze > 0 then
+			CombatSystem:RemoveStatus(player, "freeze")
+		else
+			CombatSystem:ApplyStatus(player, "freeze", 1)
+		end
+	end
+	
+	if keypad1.ButtonsDown[2][2] then -- Paralyze
+		if player.debuffs.paralyze and player.debuffs.paralyze > 0 then
+			CombatSystem:RemoveStatus(player, "paralyze")
+		else
+			CombatSystem:ApplyStatus(player, "paralyze", 2)
+		end
+	end
+	
+	if keypad1.ButtonsDown[3][2] then -- Confusion
+		if player.debuffs.confusion and player.debuffs.confusion > 0 then
+			CombatSystem:RemoveStatus(player, "confusion")
+		else
+			CombatSystem:ApplyStatus(player, "confusion", 2)
+		end
+	end
+end
+
+function Update()
+	local CombatSystem = require("CombatSystem.lua")
+	
+	
+	-- Update player stats with active buffs/debuffs
+	player:updateSubStats()
+	
+	-- Call testing update if exists
+	if TestingUpdate then
+		TestingUpdate()
+	end
 end
 
 ---------------------------------------------------------------------------
@@ -322,13 +404,11 @@ end
 local function GetConfirmedItem()
     if not confirmedItemIndex then return nil end
     
-    print("Confirmed Index:", confirmedItemIndex.x, confirmedItemIndex.y)
     
     local items = {}
     for name, qty in pairs(player.inventory) do
         local data = Utils:GetItemData(name)
         if data then 
-            print("Item in inventory:", name)
             table.insert(items, {name = name, quantity = qty, data = data}) 
         end
     end
@@ -339,12 +419,9 @@ local function GetConfirmedItem()
     end)
     
     local index = (confirmedItemIndex.y - 1) * 5 + (confirmedItemIndex.x - 1) + 1
-    print("Total items:", #items, "Selected index:", index)
     
     if items[index] then
-        print("Selected item:", items[index].name)
     else
-        print("No item found at index", index)
     end
     
     return items[index]
@@ -397,7 +474,6 @@ function HandleButtonZ()
                 Utils:PrintInventory(player, nil, nil, selectedItemIndex, nil)
             else
                 -- Mostrar mensaje de error
-                print(message)
                 -- Si el error es por inventario lleno, volver al inventario
                 if message:find("Inventario lleno") then
                     isRecipesMenuOpen = false
@@ -479,13 +555,11 @@ end
 function useCombatItem(item)
     -- Use consumable in combat
     if item.data.type == "consumable" then
-        print("DEBUG: Using item " .. item.name .. " in combat")
         
         -- Use the item (applies effects and removes from inventory)
         local success = player:useItem(item.name)
         
         if not success then
-            print("ERROR: Failed to use item " .. item.name)
             return
         end
         
@@ -737,10 +811,8 @@ function eventChannel1(sender, event)
         local options = gameState.currentDecision.options
         if event.Y < 0 then -- Abajo
             selectedDecisionIndex = math.min(selectedDecisionIndex + 1, #options)
-            print("DEBUG: DPad Down -> selectedDecisionIndex = " .. selectedDecisionIndex)
         elseif event.Y > 0 then -- Arriba
             selectedDecisionIndex = math.max(selectedDecisionIndex - 1, 1)
-            print("DEBUG: DPad Up -> selectedDecisionIndex = " .. selectedDecisionIndex)
         end
         return
     elseif gameState.combatMenuActive and not isInventoryOpen and not isFilteredInventoryOpen and not isPlayerSheetOpen then
@@ -1055,15 +1127,12 @@ function HandleSkillTreeInput()
     
     -- Try to learn/equip skill with button Z
     if buttonZ.ButtonDown and selectedSkillId then
-        print("DEBUG: ButtonZ pressed, selectedSkillId = " .. selectedSkillId)
         
         local skillData = Skill:GetSkillData(selectedSkillId)
         if not skillData then 
-            print("DEBUG: Skill data not found")
             return 
         end
         
-        print("DEBUG: Skill data found: " .. skillData.name)
         
         -- Check if already learned
         local isLearned = false
@@ -1074,11 +1143,9 @@ function HandleSkillTreeInput()
             end
         end
         
-        print("DEBUG: isLearned = " .. tostring(isLearned))
         
         if isLearned then
             -- Skill already learned: ACTIVATE EQUIP MODE
-            print("DEBUG: Activating equip mode")
             isEquipModeActive = true
             equipModeSkillId = selectedSkillId
             selectedEquipSlot = 1  -- Start at slot 1
@@ -1087,11 +1154,9 @@ function HandleSkillTreeInput()
             -- Skill not learned: show confirmation if requirements met
             -- Check if player has skill points (SILENT - no log message)
             if player.skillPoints < 1 then
-                print("DEBUG: Not enough skill points")
                 return  -- Do nothing, no warning
             end
             
-            print("DEBUG: Has skill points: " .. player.skillPoints)
             
             -- Check if required skill is learned (SILENT - no log message)
             if skillData.requiredSkill then
@@ -1103,12 +1168,10 @@ function HandleSkillTreeInput()
                     end
                 end
                 if not hasRequiredSkill then
-                    print("DEBUG: Required skill not learned")
                     return  -- Do nothing, no warning
                 end
             end
             
-            print("DEBUG: All checks passed, showing confirmation")
             
             -- All checks passed, show confirmation window
             isSkillConfirmationOpen = true
@@ -1138,12 +1201,10 @@ function HandleEquipModeInput()
             player.selectedSkills[selectedEquipSlot] = equipModeSkillId
             player.selectedSkills[otherSlot] = temp
             
-            print("DEBUG: Swapped skills - Slot " .. selectedEquipSlot .. ": " .. equipModeSkillId .. ", Slot " .. otherSlot .. ": " .. tostring(temp))
         else
             -- Skill is not equipped or is in the same slot: just equip normally
             player.selectedSkills[selectedEquipSlot] = equipModeSkillId
             
-            print("DEBUG: Equipped skill " .. equipModeSkillId .. " in slot " .. selectedEquipSlot)
         end
         
         -- Exit equip mode
@@ -1153,7 +1214,6 @@ function HandleEquipModeInput()
     
     -- Cancel with button X
     if buttonX.ButtonDown then
-        print("DEBUG: Cancelled equip mode")
         
         -- Exit equip mode without equipping
         isEquipModeActive = false
@@ -1207,20 +1267,16 @@ end
 
 function HandleCombatInput()
     if not gameState.inCombat then 
-        print("DEBUG: Not in combat")
         return 
     end
     
     if not gameState.playerTurn then 
-        print("DEBUG: Not player turn")
         return 
     end
     
-    print("DEBUG: HandleCombatInput - combatMenuActive = " .. tostring(gameState.combatMenuActive))
     
     -- If no combat menu is active, show it
     if not gameState.combatMenuActive then
-        print("DEBUG: Activating combat menu")
         gameState.combatMenuActive = true
         gameState.combatOptions = {
             {text = "Attack", action = "attack"},
@@ -1232,11 +1288,9 @@ function HandleCombatInput()
     
     -- Confirm selection with buttonZ
     if buttonZ.ButtonDown then
-        print("DEBUG: buttonZ pressed in combat")
         local option = gameState.combatOptions[gameState.selectedCombatOption]
         
         if option.action == "attack" then
-            print("DEBUG: Executing attack")
             -- Execute basic attack (ExecuteTurn handles playerTurn internally)
             local action = {type = "attack"}
             CombatSystem:ExecuteTurn(player, gameState.currentEnemy, action, gameState, log, logIcons, Utils)
@@ -1244,7 +1298,6 @@ function HandleCombatInput()
             video3:Clear(color.black)
             
         elseif option.action == "item" then
-            print("DEBUG: Opening item menu")
             -- Open consumables inventory
             gameState.combatMenuActive = false
             isFilteredInventoryOpen = true
@@ -1319,7 +1372,6 @@ function HandleDecisionInput()
     
     -- Confirmar decisión con buttonZ
     if buttonZ.ButtonDown then
-        print("DEBUG: buttonZ pressed, selecting option " .. selectedDecisionIndex)
         local selectedOption = options[selectedDecisionIndex]
         gameState.waitingForDecision = false
         gameState.currentDecision = nil
@@ -1477,12 +1529,10 @@ function update()
     elseif isFilteredInventoryOpen then
         -- Combat items: don't use filtered mode (no UNEQUIP option)
         if filteredInventoryFromCombat then
-            print("DEBUG: Combat inventory - no filtered mode")
             Utils:PrintInventory(player, inventoryFilterType, inventoryFilterSubType, 
                                selectedItemIndex, confirmedItemIndex, false, nil)
         else
             -- Player sheet equipment: use filtered mode with UNEQUIP
-            print("DEBUG: Equipment inventory - filtered mode")
             Utils:PrintInventory(player, inventoryFilterType, inventoryFilterSubType, 
                                selectedItemIndex, confirmedItemIndex, true, selectedEquipmentIndex)
         end
@@ -1501,7 +1551,8 @@ function update()
     
     TestingUpdate()
 
-        --video1:DrawSprite(vec2(1,53), debugSpr,0,0, color.white, color.clear)
+		
+     --video1:DrawSprite(vec2(1,53), debugSpr,0,0, color.white, color.clear)
 		
 		--video1:DrawSprite(vec2(1,1), logIcons,5,0, color.white, color.clear)
 	

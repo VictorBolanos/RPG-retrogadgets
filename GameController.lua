@@ -28,7 +28,9 @@ local buttonLogUp, buttonLogDown = gdt.LedButton3, gdt.LedButton4
 local dPad = gdt.DPad0
 local buttonSelect, buttonStart = gdt.LedButton14, gdt.LedButton15
 
-local buttonU, buttonI, buttonO, buttonP = gdt.LedButton7, gdt.LedButton8, gdt.LedButton9, gdt.LedButton10
+-- Testing Keypads
+local keypad0 = gdt.Keypad0
+local keypad1 = gdt.Keypad1
 
 -- Sprites
 local gameFont = rom.User.SpriteSheets["gameFont.png"]
@@ -186,32 +188,122 @@ function Testing()
     player:equipItem("Emerald pendant", "accesory1")  -- Accessory 1
     player:equipItem("Ruby necklance", "accesory2")   -- Accessory 2
 
-    -- TESTING: Apply status effects to player
-    local CombatSystem = require("CombatSystem.lua")
-    CombatSystem:ApplyStatus(player, "bleeding", 3)
-    CombatSystem:ApplyStatus(player, "poison", 4)
-
     -- StartChapter0 is now called from Init(), not here
 
 end
 
 function TestingUpdate()
 	
-	if buttonU.ButtonDown then
-		player:addExp(250)
-		
+	-- KEYPAD 0: BUFFS - Check each button using ButtonsDown[X][Y]
+	if keypad0.ButtonsDown[1][1] then -- Regen
+		if player.buffs.regen and player.buffs.regen > 0 then
+			CombatSystem:RemoveStatus(player, "regen")
+		else
+			CombatSystem:ApplyStatus(player, "regen", 4)
+		end
 	end
 	
-	if buttonI.ButtonDown then
-		player:minusHealth(1)
-		
+	if keypad0.ButtonsDown[2][1] then -- Shield
+		if player.buffs.shield and player.buffs.shield > 0 then
+			CombatSystem:RemoveStatus(player, "shield")
+		else
+			CombatSystem:ApplyStatus(player, "shield", 2)
+		end
 	end
 	
-	if buttonO.ButtonDown then
-		player:plusHealth(1)
-		
+	if keypad0.ButtonsDown[3][1] then -- Strength
+		if player.buffs.strength and player.buffs.strength > 0 then
+			CombatSystem:RemoveStatus(player, "strength")
+		else
+			CombatSystem:ApplyStatus(player, "strength", 3)
+		end
 	end
 	
+	if keypad0.ButtonsDown[1][2] then -- Haste
+		if player.buffs.haste and player.buffs.haste > 0 then
+			CombatSystem:RemoveStatus(player, "haste")
+		else
+			CombatSystem:ApplyStatus(player, "haste", 3)
+		end
+	end
+	
+	if keypad0.ButtonsDown[2][2] then -- Focus
+		if player.buffs.focus and player.buffs.focus > 0 then
+			CombatSystem:RemoveStatus(player, "focus")
+		else
+			CombatSystem:ApplyStatus(player, "focus", 3)
+		end
+	end
+	
+	if keypad0.ButtonsDown[3][2] then -- Berserk
+		if player.buffs.berserk and player.buffs.berserk > 0 then
+			CombatSystem:RemoveStatus(player, "berserk")
+		else
+			CombatSystem:ApplyStatus(player, "berserk", 2)
+		end
+	end
+	
+	-- KEYPAD 1: DEBUFFS - Check each button using ButtonsDown[X][Y]
+	if keypad1.ButtonsDown[1][1] then -- Bleeding
+		if player.debuffs.bleeding and player.debuffs.bleeding > 0 then
+			CombatSystem:RemoveStatus(player, "bleeding")
+		else
+			CombatSystem:ApplyStatus(player, "bleeding", 3)
+		end
+	end
+	
+	if keypad1.ButtonsDown[2][1] then -- Poison
+		if player.debuffs.poison and player.debuffs.poison > 0 then
+			CombatSystem:RemoveStatus(player, "poison")
+		else
+			CombatSystem:ApplyStatus(player, "poison", 4)
+		end
+	end
+	
+	if keypad1.ButtonsDown[3][1] then -- Burn
+		if player.debuffs.burn and player.debuffs.burn > 0 then
+			CombatSystem:RemoveStatus(player, "burn")
+		else
+			CombatSystem:ApplyStatus(player, "burn", 2)
+		end
+	end
+	
+	if keypad1.ButtonsDown[1][2] then -- Freeze
+		if player.debuffs.freeze and player.debuffs.freeze > 0 then
+			CombatSystem:RemoveStatus(player, "freeze")
+		else
+			CombatSystem:ApplyStatus(player, "freeze", 1)
+		end
+	end
+	
+	if keypad1.ButtonsDown[2][2] then -- Paralyze
+		if player.debuffs.paralyze and player.debuffs.paralyze > 0 then
+			CombatSystem:RemoveStatus(player, "paralyze")
+		else
+			CombatSystem:ApplyStatus(player, "paralyze", 2)
+		end
+	end
+	
+	if keypad1.ButtonsDown[3][2] then -- Confusion
+		if player.debuffs.confusion and player.debuffs.confusion > 0 then
+			CombatSystem:RemoveStatus(player, "confusion")
+		else
+			CombatSystem:ApplyStatus(player, "confusion", 2)
+		end
+	end
+end
+
+function Update()
+	local CombatSystem = require("CombatSystem.lua")
+	
+	
+	-- Update player stats with active buffs/debuffs
+	player:updateSubStats()
+	
+	-- Call testing update if exists
+	if TestingUpdate then
+		TestingUpdate()
+	end
 end
 
 ---------------------------------------------------------------------------
@@ -312,6 +404,7 @@ end
 local function GetConfirmedItem()
     if not confirmedItemIndex then return nil end
     
+    
     local items = {}
     for name, qty in pairs(player.inventory) do
         local data = Utils:GetItemData(name)
@@ -326,6 +419,10 @@ local function GetConfirmedItem()
     end)
     
     local index = (confirmedItemIndex.y - 1) * 5 + (confirmedItemIndex.x - 1) + 1
+    
+    if items[index] then
+    else
+    end
     
     return items[index]
 end
@@ -376,6 +473,7 @@ function HandleButtonZ()
                 confirmedItemIndex = nil
                 Utils:PrintInventory(player, nil, nil, selectedItemIndex, nil)
             else
+                -- Mostrar mensaje de error
                 -- Si el error es por inventario lleno, volver al inventario
                 if message:find("Inventario lleno") then
                     isRecipesMenuOpen = false
@@ -1035,6 +1133,7 @@ function HandleSkillTreeInput()
             return 
         end
         
+        
         -- Check if already learned
         local isLearned = false
         for _, learnedId in ipairs(player.skills) do
@@ -1043,6 +1142,7 @@ function HandleSkillTreeInput()
                 break
             end
         end
+        
         
         if isLearned then
             -- Skill already learned: ACTIVATE EQUIP MODE
@@ -1057,6 +1157,7 @@ function HandleSkillTreeInput()
                 return  -- Do nothing, no warning
             end
             
+            
             -- Check if required skill is learned (SILENT - no log message)
             if skillData.requiredSkill then
                 local hasRequiredSkill = false
@@ -1070,6 +1171,7 @@ function HandleSkillTreeInput()
                     return  -- Do nothing, no warning
                 end
             end
+            
             
             -- All checks passed, show confirmation window
             isSkillConfirmationOpen = true
@@ -1098,9 +1200,11 @@ function HandleEquipModeInput()
             local temp = player.selectedSkills[selectedEquipSlot]
             player.selectedSkills[selectedEquipSlot] = equipModeSkillId
             player.selectedSkills[otherSlot] = temp
+            
         else
             -- Skill is not equipped or is in the same slot: just equip normally
             player.selectedSkills[selectedEquipSlot] = equipModeSkillId
+            
         end
         
         -- Exit equip mode
@@ -1169,6 +1273,7 @@ function HandleCombatInput()
     if not gameState.playerTurn then 
         return 
     end
+    
     
     -- If no combat menu is active, show it
     if not gameState.combatMenuActive then
@@ -1446,7 +1551,8 @@ function update()
     
     TestingUpdate()
 
-        --video1:DrawSprite(vec2(1,53), debugSpr,0,0, color.white, color.clear)
+		
+     --video1:DrawSprite(vec2(1,53), debugSpr,0,0, color.white, color.clear)
 		
 		--video1:DrawSprite(vec2(1,1), logIcons,5,0, color.white, color.clear)
 	

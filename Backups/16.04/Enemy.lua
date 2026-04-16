@@ -17,7 +17,6 @@ function Enemy:new(enemyId)
     end
     
     if not template then
-        print("Error: Enemy ID "..enemyId.." doesn't exist")
         return nil
     end
     
@@ -86,15 +85,59 @@ function Enemy:updateSubStats()
     local int = self.stats.intelligence
     local vit = self.stats.vitality
     
+    -- Calculate base stats
+    local baseAttack = (str * 2)
+    local baseMAttack = (int * 2)
+    local baseDef = math.floor((vit * 1.5) + (str * 0.5))
+    local baseMDef = math.floor((vit * 1.5) + (int * 0.5))
+    local baseSpeed = agi
+    local baseDodge = math.min(80, math.floor(agi * 0.8))
+    local baseHit = math.min(80, math.floor(dex * 0.8))
+    local baseCrit = math.min(25, math.floor(dex * 0.25))
+    
+    -- Apply BUFFS
+    if self.buffs then
+        -- Strength: +40% ATK
+        if self.buffs.strength and self.buffs.strength > 0 then
+            baseAttack = baseAttack * 1.4
+        end
+        
+        -- Berserk: +60% ATK, -40% DEF
+        if self.buffs.berserk and self.buffs.berserk > 0 then
+            baseAttack = baseAttack * 1.6
+            baseDef = baseDef * 0.6
+        end
+        
+        -- Haste: +30% Dodge, +15% Crit
+        if self.buffs.haste and self.buffs.haste > 0 then
+            baseDodge = math.min(95, baseDodge * 1.3)
+            baseCrit = math.min(50, baseCrit * 1.15)
+        end
+        
+        -- Focus: +50% Hit, +30% mATK
+        if self.buffs.focus and self.buffs.focus > 0 then
+            baseHit = math.min(95, baseHit * 1.5)
+            baseMAttack = baseMAttack * 1.3
+        end
+    end
+    
+    -- Apply DEBUFFS
+    if self.debuffs then
+        -- Burn: -30% DEF
+        if self.debuffs.burn and self.debuffs.burn > 0 then
+            baseDef = baseDef * 0.7
+        end
+    end
+    
     self.subStats = {
-        attack = (str * 2),
-        mAttack = (int * 2),
-        defense = math.floor((vit * 1.5) + (str * 0.5)),
-        mDefense = math.floor((vit * 1.5) + (int * 0.5)),
-        speed = agi,
-        dodge = math.min(80, math.floor(agi * 0.8)),
-        hit = math.min(80, math.floor(dex * 0.8)),
-        crit = math.min(25, math.floor(dex * 0.25)),
+        attack = baseAttack,
+        mAttack = baseMAttack,
+        defense = baseDef,
+        mDefense = baseMDef,
+        speed = baseSpeed,
+        dodge = baseDodge,
+        hit = baseHit,
+        crit = baseCrit,
         healthRegen = math.floor(vit * 0.1),
         manaRegen = math.floor(int * 0.1),
         hungerDecay = 0,
@@ -172,6 +215,17 @@ function Enemy:ExecuteAction(action, player, log, logIcons, Utils)
         return
     end
     
+    -- Check Confusion FIRST
+    if self.debuffs and self.debuffs.confusion and self.debuffs.confusion > 0 then
+        if math.random(100) <= 40 then
+            -- Hit self instead
+            local selfDamage = math.floor(self.subStats.attack * 0.5)
+            self.health = math.max(0, self.health - selfDamage)
+            Utils:AddLogEntry(log, logIcons, 0, 0, self.name.." is confused and hits itself for "..selfDamage.." damage!")
+            return
+        end
+    end
+    
     if action.type == "attack" then
         self:Attack(player, action.attackType, action.power or 1.0, log, logIcons, Utils)
     end
@@ -209,6 +263,16 @@ function Enemy:Attack(target, attackType, powerMultiplier, log, logIcons, Utils)
     if math.random(1, 100) <= self.subStats.crit then
         totalDamage = totalDamage * 2
         Utils:AddLogEntry(log, logIcons, 0, 0, "Enemy critical!")
+    end
+    
+    -- Apply target buffs (Shield reduces damage)
+    if target.buffs and target.buffs.shield and target.buffs.shield > 0 then
+        totalDamage = totalDamage * 0.6  -- -40% damage
+    end
+    
+    -- Apply target debuffs (Freeze increases damage taken)
+    if target.debuffs and target.debuffs.freeze and target.debuffs.freeze > 0 then
+        totalDamage = totalDamage * 1.4  -- +40% damage
     end
     
     -- Apply damage

@@ -224,12 +224,14 @@ end
 function Chapters:HandleDecision(event, player, gameState, log, logIcons, Utils)
     Utils:AddLogEntry(log, logIcons, 3, 0, event.question)
     
+    
     -- Clear any previous state
     gameState.waitingForInput = false
     gameState.nextEvent = nil
     
     gameState.currentDecision = event
     gameState.waitingForDecision = true
+    
     
     return {type = "decision", options = event.options}
 end

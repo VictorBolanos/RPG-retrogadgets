@@ -202,15 +202,18 @@ function Utils:PrintPlayerConstants(player)
     printAdjustedNumber(player.mana, 38, 56)      -- Mana
     printAdjustedNumber(player.hunger, 90, 56)    -- Hunger
     printAdjustedNumber(player.sleepyness, 116, 56)-- Sleep
+    
+    -- Draw status effects bar
+    local statusIconsSprite = rom.User.SpriteSheets["statusIcons.png"]
+    if statusIconsSprite then
+        self:DrawPlayerStatusBar(player, statusIconsSprite)
+    end
 end
 
 ---------------------------------------------------------------------------
 -- inventory print
 
 function Utils:PrintInventory(player, itemType, itemSubType, selectedIndex, confirmedIndex, isFiltered, equipSlot)
-    -- DEBUG
-    print("DEBUG PrintInventory: itemType=" .. tostring(itemType) .. ", equipSlot=" .. tostring(equipSlot) .. ", isFiltered=" .. tostring(isFiltered))
-    
     -- Configuración inicial de pantalla
     videoPrincipal:Clear(color.black)
     videoPrincipal:DrawSprite(vec2(0, 0), guiInventory, 0, 0, color.white, color.clear)
@@ -219,7 +222,6 @@ function Utils:PrintInventory(player, itemType, itemSubType, selectedIndex, conf
     local items = {}
     local shouldShowUnequip = isFiltered and equipSlot and player.equipment[equipSlot]
     
-    print("DEBUG shouldShowUnequip=" .. tostring(shouldShowUnequip))
     
     if shouldShowUnequip then
         table.insert(items, {
@@ -810,6 +812,12 @@ function Utils:PrintCombatScreen(player, enemy, enemyFrame, gameFont, gameFontAl
     -- Texto HP (alineado a la derecha del corazón)
     local hpX = heartX + 8
     self:Tprint(videoPrincipal, vec2(hpX, heartY), gameFont, nil, nil, nil, hpText)
+    
+    -- Draw enemy status effects below HP
+    local statusIconsSprite = rom.User.SpriteSheets["statusIcons.png"]
+    if statusIconsSprite then
+        self:DrawEnemyStatusList(enemy, heartX, heartY + 8, statusIconsSprite, gameFont)
+    end
 end
 
 function Utils:PrintSkillButtons(player, Skill, skillSpr)
@@ -846,9 +854,6 @@ end
 function Utils:PrintDecisionOptions(options, selectedIndex)
     local video3 = gdt.VideoChip2
     
-    print("DEBUG: PrintDecisionOptions called")
-    print("DEBUG: options count = " .. #options)
-    print("DEBUG: selectedIndex = " .. selectedIndex)
     
     video3:Clear(color.black)
     
@@ -859,7 +864,6 @@ function Utils:PrintDecisionOptions(options, selectedIndex)
             iconX, iconY = 5, 0  -- Icon selected
         end
         
-        print("DEBUG: Drawing option " .. i .. ": " .. option.text .. " at Y=" .. (startY + (i-1)*8))
         
         -- Draw icon + text (same as ShowOptions)
         self:Tprint(video3, vec2(2, startY + (i-1)*8), gameFont, logIcons, iconX, iconY, option.text)
@@ -872,9 +876,6 @@ function Utils:PrintSkillConfirmation(videoChip, gameFont, guiExtraWindow, guiBu
     local windowX = 16
     local windowY = 16
     
-    print("DEBUG: Drawing skill confirmation window")
-    print("DEBUG: guiExtraWindow = " .. tostring(guiExtraWindow))
-    print("DEBUG: guiButtons = " .. tostring(guiButtons))
     
     -- Draw confirmation window (sprite index 0,1 not 0,0)
     videoChip:DrawSprite(vec2(windowX, windowY), guiExtraWindow, 0, 1, color.white, color.clear)
@@ -902,6 +903,153 @@ function Utils:PrintSkillConfirmation(videoChip, gameFont, guiExtraWindow, guiBu
     
     -- Draw button X (cancel)
     videoChip:DrawSprite(vec2(buttonXX, buttonY), guiButtons, 5, 0, color.white, color.clear)
+end
+
+---------------------------------------------------------------------------
+-- STATUS EFFECTS RENDERING
+
+function Utils:DrawPlayerStatusBar(player, statusIconsSprite)
+    local CombatSystem = require("CombatSystem.lua")
+    
+    if not statusIconsSprite then return end
+    
+    -- Buffs positions: 5, 14, 23, 32, 41, 50
+    local buffPositions = {5, 14, 23, 32, 41, 50}
+    local buffNames = {"regen", "shield", "strength", "haste", "focus", "berserk"}
+    
+    -- Debuffs positions: 70, 79, 88, 97, 106, 115
+    local debuffPositions = {70, 79, 88, 97, 106, 115}
+    local debuffNames = {"bleeding", "poison", "burn", "freeze", "paralyze", "confusion"}
+    
+    local y = 1  -- Y position for all icons
+    
+    -- Draw buffs
+    for i, buffName in ipairs(buffNames) do
+        local statusData = CombatSystem.StatusEffects[buffName]
+        if statusData then
+            local isActive = player.buffs and player.buffs[buffName] and player.buffs[buffName] > 0
+            
+            -- Usar color.white para activos, gris para inactivos
+            local spriteColor = isActive and color.white or vec3(60, 60, 60)
+            
+            videoPrincipal:DrawSprite(
+                vec2(buffPositions[i], y),
+                statusIconsSprite,
+                statusData.sprite[1], statusData.sprite[2],
+                spriteColor, color.clear
+            )
+            
+            -- Draw turn count if active
+            if isActive and player.buffs[buffName] < 999 then  -- 999 = permanent
+                self:Tprint(videoPrincipal, vec2(buffPositions[i] + 5, y + 4), 
+                          gameFontAlter1, nil, nil, nil, tostring(player.buffs[buffName]))
+            end
+        end
+    end
+    
+    -- Draw debuffs
+    for i, debuffName in ipairs(debuffNames) do
+        local statusData = CombatSystem.StatusEffects[debuffName]
+        if statusData then
+            local isActive = player.debuffs and player.debuffs[debuffName] and player.debuffs[debuffName] > 0
+            
+            -- Usar color.white para activos, gris para inactivos
+            local spriteColor = isActive and color.white or vec3(60, 60, 60)
+            
+            videoPrincipal:DrawSprite(
+                vec2(debuffPositions[i], y),
+                statusIconsSprite,
+                statusData.sprite[1], statusData.sprite[2],
+                spriteColor, color.clear
+            )
+            
+            -- Draw turn count if active
+            if isActive then
+                self:Tprint(videoPrincipal, vec2(debuffPositions[i] + 5, y + 4), 
+                          gameFontAlter1, nil, nil, nil, tostring(player.debuffs[debuffName]))
+            end
+        end
+    end
+end
+
+function Utils:DrawEnemyStatusList(enemy, posX, posY, statusIconsSprite, font)
+    local CombatSystem = require("CombatSystem.lua")
+    local currentY = posY
+    
+    -- Count active buffs and debuffs
+    local hasBuffs = false
+    local hasDebuffs = false
+    
+    if enemy.buffs then
+        for _, turns in pairs(enemy.buffs) do
+            if turns > 0 then hasBuffs = true break end
+        end
+    end
+    
+    if enemy.debuffs then
+        for _, turns in pairs(enemy.debuffs) do
+            if turns > 0 then hasDebuffs = true break end
+        end
+    end
+    
+    -- Draw buffs
+    if hasBuffs then
+        self:Tprint(videoPrincipal, vec2(posX, currentY), font, nil, nil, nil, "Buffs:")
+        currentY = currentY + 7
+        
+        local iconX = posX
+        for buffName, turns in pairs(enemy.buffs) do
+            if turns > 0 then
+                local statusData = CombatSystem.StatusEffects[buffName]
+                if statusData then
+                    -- Draw icon con color.white
+                    videoPrincipal:DrawSprite(
+                        vec2(iconX, currentY),
+                        statusIconsSprite,
+                        statusData.sprite[1], statusData.sprite[2],
+                        color.white, color.clear
+                    )
+                    
+                    -- Draw turns (skip if permanent)
+                    if turns < 999 then
+                        self:Tprint(videoPrincipal, vec2(iconX + 5, currentY + 4), 
+                                  gameFontAlter1, nil, nil, nil, tostring(turns))
+                    end
+                    
+                    iconX = iconX + 10  -- Next icon
+                end
+            end
+        end
+        currentY = currentY + 10
+    end
+    
+    -- Draw debuffs
+    if hasDebuffs then
+        self:Tprint(videoPrincipal, vec2(posX, currentY), font, nil, nil, nil, "Debuffs:")
+        currentY = currentY + 7
+        
+        local iconX = posX
+        for debuffName, turns in pairs(enemy.debuffs) do
+            if turns > 0 then
+                local statusData = CombatSystem.StatusEffects[debuffName]
+                if statusData then
+                    -- Draw icon con color.white
+                    videoPrincipal:DrawSprite(
+                        vec2(iconX, currentY),
+                        statusIconsSprite,
+                        statusData.sprite[1], statusData.sprite[2],
+                        color.white, color.clear
+                    )
+                    
+                    -- Draw turns
+                    self:Tprint(videoPrincipal, vec2(iconX + 5, currentY + 4), 
+                              gameFontAlter1, nil, nil, nil, tostring(turns))
+                    
+                    iconX = iconX + 10  -- Next icon
+                end
+            end
+        end
+    end
 end
 
 ---------------------------------------------------------------------------

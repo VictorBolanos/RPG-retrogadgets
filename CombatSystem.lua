@@ -1,5 +1,4 @@
 -- CombatSystem.lua - Turn-based combat system
-local Skill = require("Skill.lua")
 
 local CombatSystem = {}
 
@@ -58,7 +57,7 @@ CombatSystem.StatusEffects = {
         activeColor = {150, 220, 255},  -- Azul brillante
         grayColor = {60, 60, 60},
         name = "Focus",
-        description = "100% accuracy and +30% Magic ATK"
+        description = "+50% accuracy and +30% Magic ATK"
     },
     berserk = {
         type = "buff",
@@ -124,17 +123,12 @@ CombatSystem.StatusEffects = {
 -- STATUS EFFECTS FUNCTIONS
 
 function CombatSystem:ApplyStatus(target, statusName, duration)
-    -- Verificar que target existe
-    if not target then 
-        return false 
-    end
+    if not target then return false end
     
     local statusData = self.StatusEffects[statusName]
-    if not statusData then 
-        return false 
-    end
+    if not statusData then return false end
     
-    -- Check immunity (solo si immunity existe y es una tabla)
+    -- Check immunity
     if target.immunity and type(target.immunity) == "table" and tableContains(target.immunity, statusName) then
         return false
     end
@@ -181,8 +175,13 @@ function CombatSystem:ExecuteTurn(player, enemy, action, gameState, log, logIcon
     local playerFirst = playerInitiative >= enemyInitiative
     
     if playerFirst then
-        -- Player turn
-        self:ExecutePlayerAction(player, enemy, action, log, logIcons, Utils)
+        -- Player turn - check if can act
+        local canAct, reason = player:CanAct()
+        if not canAct then
+            Utils:AddLogEntry(log, logIcons, 0, 0, "You are "..reason.." and can't act!")
+        else
+            self:ExecutePlayerAction(player, enemy, action, log, logIcons, Utils)
+        end
         
         if enemy.health <= 0 then
             self:HandleVictory(player, enemy, gameState, log, logIcons, Utils)
@@ -228,8 +227,13 @@ function CombatSystem:ExecuteTurn(player, enemy, action, gameState, log, logIcon
             return
         end
         
-        -- Player turn
-        self:ExecutePlayerAction(player, enemy, action, log, logIcons, Utils)
+        -- Player turn - check if can act
+        local canAct, reason = player:CanAct()
+        if not canAct then
+            Utils:AddLogEntry(log, logIcons, 0, 0, "You are "..reason.." and can't act!")
+        else
+            self:ExecutePlayerAction(player, enemy, action, log, logIcons, Utils)
+        end
         
         if enemy.health <= 0 then
             self:HandleVictory(player, enemy, gameState, log, logIcons, Utils)
@@ -259,11 +263,35 @@ end
 -- Player Action Execution
 
 function CombatSystem:ExecutePlayerAction(player, enemy, action, log, logIcons, Utils)
+    -- Check Confusion FIRST (before any action)
+    if player.debuffs and player.debuffs.confusion and player.debuffs.confusion > 0 then
+        if math.random(100) <= 40 then
+            -- Hit yourself instead
+            local selfDamage = math.floor(player.subStats.attack * 0.5)
+            player:minusHealth(selfDamage)
+            Utils:AddLogEntry(log, logIcons, 0, 0, "Confused! You hit yourself for "..selfDamage.." damage!")
+            return
+        end
+    end
+    
     if action.type == "skill" then
+        local Skill = require("Skill.lua")
         Skill:UseSkill(player, enemy, action.skillId, log, logIcons, Utils)
     elseif action.type == "attack" then
         -- Basic physical attack
         local damage = math.max(1, player.subStats.attack - enemy.subStats.defense)
+        
+        -- Apply enemy buffs (Shield)
+        if enemy.buffs and enemy.buffs.shield and enemy.buffs.shield > 0 then
+            damage = damage * 0.6
+        end
+        
+        -- Apply enemy debuffs (Freeze)
+        if enemy.debuffs and enemy.debuffs.freeze and enemy.debuffs.freeze > 0 then
+            damage = damage * 1.4
+        end
+        
+        damage = math.floor(damage)
         enemy.health = math.max(0, enemy.health - damage)
         Utils:AddLogEntry(log, logIcons, 1, 0, player.name.." attacks!")
         Utils:AddLogEntry(log, logIcons, 1, 0, enemy.name.." takes "..damage.." damage!")

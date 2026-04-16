@@ -222,18 +222,61 @@ function Player:updateSubStats()
     local dex = self.stats.dexterity
     local int = self.stats.intelligence
     local vit = self.stats.vitality
---print("Sumando ", (1 * vit), " y ", self.equipmentStatBonuss.defense)
+
+    -- Calcular stats base
+    local baseAttack = (1 * str) + (0.5 * agi) + self.equipmentStatBonuss.attack
+    local baseMAttack = (1 * int) + (0.5 * dex) + self.equipmentStatBonuss.mAttack
+    local baseDef = (1 * vit) + self.equipmentStatBonuss.defense
+    local baseMDef = (1 * vit) + (0.5 * int) + self.equipmentStatBonuss.mDefense
+    local baseSpeed = (1 * agi) + (0.5 * dex) + self.equipmentStatBonuss.speed
+    local baseDodge = (0.5 * agi) + (0.5 * dex) + self.equipmentStatBonuss.dodge
+    local baseHit = (1 * dex) + self.equipmentStatBonuss.hit
+    local baseCrit = (0.5 * str) + (0.5 * dex) + self.equipmentStatBonuss.crit
+    
+    -- Apply BUFFS
+    if self.buffs then
+        -- Strength: +40% ATK
+        if self.buffs.strength and self.buffs.strength > 0 then
+            baseAttack = baseAttack * 1.4
+        end
+        
+        -- Berserk: +60% ATK, -40% DEF
+        if self.buffs.berserk and self.buffs.berserk > 0 then
+            baseAttack = baseAttack * 1.6
+            baseDef = baseDef * 0.6
+        end
+        
+        -- Haste: +30% Dodge, +15% Crit
+        if self.buffs.haste and self.buffs.haste > 0 then
+            baseDodge = baseDodge * 1.3
+            baseCrit = baseCrit * 1.15
+        end
+        
+        -- Focus: +50% Hit (changed from 100%), +30% mATK
+        if self.buffs.focus and self.buffs.focus > 0 then
+            baseHit = baseHit * 1.5
+            baseMAttack = baseMAttack * 1.3
+        end
+    end
+    
+    -- Apply DEBUFFS
+    if self.debuffs then
+        -- Burn: -30% DEF
+        if self.debuffs.burn and self.debuffs.burn > 0 then
+            baseDef = baseDef * 0.7
+        end
+    end
+
     -- Actualización completa de todos los subStats
     self.subStats = {
-        attack = (1 * str) + (0.5 * agi) + self.equipmentStatBonuss.attack,
-        mAttack = (1 * int) + (0.5 * dex) + self.equipmentStatBonuss.mAttack,
-        defense = (1 * vit) + self.equipmentStatBonuss.defense,
-        mDefense = (1 * vit) + (0.5 * int) + self.equipmentStatBonuss.mDefense,
-        speed = (1 * agi) + (0.5 * dex) + self.equipmentStatBonuss.speed,
-        dodge = (0.5 * agi) + (0.5 * dex) + self.equipmentStatBonuss.dodge,
-
-        hit = (1 * dex) + self.equipmentStatBonuss.hit,
-        crit = (0.5 * str) + (0.5 * dex) + self.equipmentStatBonuss.crit,
+        attack = baseAttack,
+        mAttack = baseMAttack,
+        defense = baseDef,
+        mDefense = baseMDef,
+        speed = baseSpeed,
+        dodge = baseDodge,
+        hit = baseHit,
+        crit = baseCrit,
         healthRegen = (0.5 * vit) + self.equipmentStatBonuss.healthRegen,
         manaRegen = (0.5 * int) + self.equipmentStatBonuss.manaRegen,
         hungerDecay = (0.25 * str) + (0.25 * agi) + self.equipmentStatBonuss.hungerDecay,
@@ -247,7 +290,6 @@ end
 function Player:equipItem(itemName, slot)
     local itemData = Utils:GetItemData(itemName)
     if not itemData then
-        print("Error: Item '"..itemName.."' does not exist.")
         return
     end
 
@@ -263,7 +305,6 @@ function Player:equipItem(itemName, slot)
     }
 
     if validSlots[slot] ~= itemData.type then
-        print("Error: Cannot equip '"..itemName.."' in '"..slot.."'.")
         return
     end
 
@@ -284,7 +325,6 @@ end
 function Player:unequipItem(slot)
     local itemName = self.equipment[slot]
     if not itemName then
-        print("Error: Nothing equipped in '"..slot.."'.")
         return
     end
 
@@ -370,12 +410,10 @@ function Player:addItemToInventory(itemName, quantity)
     local current = self.inventory[itemName] or 0
     
     if current + quantity > 99 then
-        print("Stack limit reached for "..itemName.." (99)")
         return false
     end
     
     if current == 0 and self:countInventoryItems() >= 24 then
-        print("Inventory full (24 slots max)")
         return false
     end
     
@@ -394,12 +432,10 @@ function Player:removeItemFromInventory(itemName, quantity)
     self.inventory = self.inventory or {}
     
     if not self.inventory[itemName] then
-        print("Objeto no encontrado: "..itemName)
         return false
     end
     
     if self.inventory[itemName] < quantity then
-        print("Cantidad insuficiente de "..itemName)
         return false
     end
     
@@ -501,7 +537,6 @@ function Player:discoverRecipes()
             end
 
             if hasAnyIngredient then
-                print("Receta desbloqueada:", recipe.name)
                 table.insert(self.recipes, recipe)
             end
         end
@@ -679,15 +714,17 @@ end
 function Player:CanAct()
     -- Freeze blocks action completely
     if self.debuffs and self.debuffs.freeze and self.debuffs.freeze > 0 then
-        return false
+        return false, "frozen"
     end
     
     -- Paralyze has 50% chance to block
     if self.debuffs and self.debuffs.paralyze and self.debuffs.paralyze > 0 then
-        return math.random(100) > 50
+        if math.random(100) <= 50 then
+            return false, "paralyzed"
+        end
     end
     
-    return true
+    return true, nil
 end
 
 ---------------------------------------------------------------------------
